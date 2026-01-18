@@ -2,36 +2,21 @@ import { PrismaClient } from '@/generated/prisma_client';
 import { resend } from '@/lib/resend';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { emailOTP, organization } from 'better-auth/plugins';
-import { createAccessControl } from 'better-auth/plugins/access';
-import { InvitationEmailHtml } from './email/templates/invitation';
+import { emailOTP } from 'better-auth/plugins';
+
 import { OtpEmailHtml } from './email/templates/otp';
 import { ResetPasswordEmailHtml } from './email/templates/reset-password';
 
 const prisma = new PrismaClient();
-
-const statement = {
-  organization: ['update', 'delete'],
-  member: ['create', 'update', 'delete'],
-  invitation: ['create', 'cancel'],
-} as const;
-
-const ac = createAccessControl(statement);
-
-const ownerRole = ac.newRole({
-  organization: ['update', 'delete'],
-  member: ['create', 'update', 'delete'],
-  invitation: ['create', 'cancel'],
-});
 
 export const auth = betterAuth({
   basePath: '/api/auth',
   trustedOrigins: [
     'skeet://',
     'exp://',
-    'http://localhost:4556',
+    'http://localhost:5556',
     'https://skeet-michael-codesjs.koyeb.app',
-    'https://skeet-shops.vercel.app',
+    'https://skeet-app.vercel.app',
     'https://comprehensive-flori-skeet-f31dc0c6.koyeb.app',
   ], // Added exp:// for Expo Go and shops app
   database: prismaAdapter(prisma, { provider: 'postgresql' }),
@@ -79,64 +64,6 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
   },
   plugins: [
-    organization({
-      async sendInvitationEmail(data) {
-        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4556'}/accept-invitation/${data.id}`;
-
-        if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
-          console.log(
-            `\n\n=== Invitation for ${data.email} ===\nURL: ${inviteLink}\n========================\n\n`,
-          );
-        }
-
-        try {
-          const { data: resendData, error } = await resend.emails.send({
-            from: 'info@usezeiro.com',
-            to: data.email,
-            subject: `You've been invited to join ${data.organization.name}`,
-            html: InvitationEmailHtml(
-              data.inviter.user.name || 'A Colleague',
-              data.organization.name,
-              inviteLink,
-            ),
-          });
-
-          if (error) {
-            console.error('❌ Failed to send invitation email:', error);
-          } else {
-            console.log('✅ Invitation email sent to:', data.email);
-          }
-        } catch (e) {
-          console.error('❌ Error sending invitation email:', e);
-        }
-      },
-      schema: {
-        organization: {
-          modelName: 'shop',
-        },
-        member: {
-          modelName: 'shopMember',
-          fields: {
-            organizationId: 'shopId',
-          },
-        },
-        invitation: {
-          modelName: 'shopInvitation',
-          fields: {
-            organizationId: 'shopId',
-          },
-        },
-      },
-      roles: {
-        OWNER: ownerRole,
-        MANAGER: ac.newRole({
-          invitation: ['create', 'cancel'],
-          member: ['create', 'update', 'delete'],
-        }),
-      },
-      creatorRole: 'OWNER',
-      adminRole: 'OWNER',
-    }),
     emailOTP({
       sendVerificationOnSignUp: true,
       overrideDefaultEmailVerification: true,
@@ -201,6 +128,10 @@ export const auth = betterAuth({
     defaultCookieAttributes: {
       sameSite: 'none',
       secure: true,
+    },
+    useSecureCookies: process.env.NODE_ENV === 'production',
+    crossSubDomainCookies: {
+      enabled: true,
     },
   },
 });

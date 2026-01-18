@@ -4,8 +4,16 @@ import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { useAuthStore } from '@/store/auth';
+import { useEffect } from 'react';
+
 export function Navbar() {
   const pathname = usePathname();
+  const { session, fetchSession } = useAuthStore();
+
+  useEffect(() => {
+    fetchSession();
+  }, [fetchSession]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center py-6 px-4">
@@ -40,12 +48,26 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm">
-            Log In
-          </Button>
-          <Button variant="primary" size="sm">
-            Get Started
-          </Button>
+          {session ? (
+            <a href={process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/'}>
+              <Button variant="primary" size="sm">
+                Go to dashboard
+              </Button>
+            </a>
+          ) : (
+            <>
+              <Link href="/sign-in">
+                <Button variant="secondary" size="sm">
+                  Log In
+                </Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button variant="primary" size="sm">
+                  Get Started
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

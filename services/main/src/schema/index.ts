@@ -4,7 +4,6 @@ import { join } from 'path';
 import { permissions } from './permissions';
 import { DateTime, Json } from './scalars';
 import * as types from './types';
-export * from './types/vehicle';
 
 const baseSchema = makeSchema({
   types: [types, DateTime, Json],
