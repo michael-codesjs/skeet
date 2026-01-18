@@ -21,17 +21,16 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await authClient.emailOtp.sendVerificationOtp({
+      const resetLink = `${window.location.origin}/reset-password`;
+      const { data, error } = await (authClient as any).forgetPassword({
         email,
-        type: 'forget-password',
+        redirectTo: resetLink,
       });
 
       if (error) {
-        setError(error.message || 'Failed to send reset code');
+        setError(error.message || 'Failed to send reset email');
       } else {
         setSent(true);
-        // Redirect to reset password page with email
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -40,12 +39,29 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  if (sent) {
+    return (
+      <div className="glass-card p-10 rounded-3xl border border-white/5 bg-black/40 backdrop-blur-3xl shadow-2xl text-center">
+        <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Sms size={32} color="currentColor" className="text-white" variant="Bulk" />
+        </div>
+        <h1 className="text-2xl font-bold mb-3 text-white">Check your email</h1>
+        <p className="text-neutral-400 mb-8">
+          We've sent a password reset link to <span className="text-white">{email}</span>
+        </p>
+        <Button onClick={() => setSent(false)} variant="outline" className="w-full">
+          Back
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card p-10 rounded-3xl border border-white/5 bg-black/40 backdrop-blur-3xl shadow-2xl">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold mb-3 tracking-tight text-gradient">Forgot Password</h1>
         <p className="text-neutral-400 text-sm font-medium">
-          Enter your email to receive a reset code
+          Enter your email to receive a password reset link
         </p>
       </div>
 
@@ -67,7 +83,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Sending Code...' : 'Send Reset Code'}
+          {loading ? 'Sending Link...' : 'Send Reset Link'}
         </Button>
 
         <div className="text-center">

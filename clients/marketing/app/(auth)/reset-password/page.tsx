@@ -10,13 +10,13 @@ import { Suspense, useState } from 'react';
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get('email') || '';
+  const token = searchParams.get('token') || '';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
-    otp: '',
+    token: token,
     password: '',
     confirmPassword: '',
   });
@@ -35,7 +35,7 @@ function ResetPasswordContent() {
     try {
       const { data, error } = await authClient.resetPassword({
         newPassword: formData.password,
-        token: formData.otp,
+        token: formData.token,
       });
 
       if (error) {
@@ -67,19 +67,24 @@ function ResetPasswordContent() {
     <div className="glass-card p-10 rounded-3xl border border-white/5 bg-black/40 backdrop-blur-3xl shadow-2xl">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold mb-3 tracking-tight text-gradient">Reset Password</h1>
-        <p className="text-neutral-400 text-sm font-medium">Enter the code sent to {email}</p>
+        <p className="text-neutral-400 text-sm font-medium">
+          Create a new password for your account
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Input
-          label="Verification Code (OTP)"
-          type="text"
-          placeholder="Enter 6-digit code"
-          value={formData.otp}
-          onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
-          className="text-center tracking-widest text-lg"
-          required
-        />
+        {/* Only show token input if not present in URL */}
+        {!token && (
+          <Input
+            label="Reset Token"
+            type="text"
+            placeholder="Enter reset token"
+            value={formData.token}
+            onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+            className="text-center tracking-widest text-lg"
+            required
+          />
+        )}
 
         <Input
           label="New Password"

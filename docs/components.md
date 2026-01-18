@@ -39,6 +39,7 @@ We use **Iconsax** for our iconography.
 - **Style**: Clean, linear icons.
 - **Library**: `iconsax-react`
 - **Interaction**: Often paired with hover effects (e.g., Group hover translate).
+- **Usage**: ALWAYS add `color="currentColor"` to the icon component to ensure it inherits the parent's text color (e.g., `<Add size={20} color="currentColor" />`).
 
 ## Animations
 

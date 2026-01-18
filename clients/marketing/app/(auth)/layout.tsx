@@ -3,6 +3,7 @@
 import { Logo } from '@/components/ui/logo';
 import { useAuthStore } from '@/store/auth';
 import { motion } from 'framer-motion';
+import { Sms } from 'iconsax-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
 
@@ -49,6 +50,18 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
         {/* Content */}
         {children}
+
+        {/* Auth Footer */}
+        <div className="mt-8 flex justify-between items-center text-sm text-neutral-600">
+          <p>© Skeet 2026</p>
+          <a
+            href="mailto:help@skeet.com"
+            className="flex items-center gap-2 hover:text-white transition-colors"
+          >
+            <Sms size={16} variant="Bold" />
+            help@skeet.com
+          </a>
+        </div>
       </motion.div>
     </div>
   );

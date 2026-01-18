@@ -1,6 +1,7 @@
 'use client';
 
 import { Logo } from '@/components/ui/logo';
+import Link from 'next/link';
 
 export function Footer() {
   return (
@@ -43,9 +44,9 @@ export function Footer() {
               <h4 className="text-white font-bold">Product</h4>
               <ul className="space-y-2 text-sm text-neutral-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <Link href="/features" className="hover:text-white transition-colors">
                     Features
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="hover:text-white transition-colors">
@@ -63,9 +64,9 @@ export function Footer() {
               <h4 className="text-white font-bold">Company</h4>
               <ul className="space-y-2 text-sm text-neutral-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <Link href="/about" className="hover:text-white transition-colors">
                     About
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="hover:text-white transition-colors">

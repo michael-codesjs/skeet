@@ -50,7 +50,7 @@ COPY --chown=expressjs:nodejs --from=installer /app .
 WORKDIR /app/services/main
 
 # Expose the port the app runs on
-EXPOSE 4000
+EXPOSE 5445
 
 # Start the application
 CMD ["node", "dist/src/index.js"]

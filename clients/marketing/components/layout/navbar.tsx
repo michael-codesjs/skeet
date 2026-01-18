@@ -51,7 +51,7 @@ export function Navbar() {
           {session ? (
             <a href={process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/'}>
               <Button variant="primary" size="sm">
-                Go to dashboard
+                Dashboard
               </Button>
             </a>
           ) : (

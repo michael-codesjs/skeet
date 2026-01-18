@@ -4,7 +4,16 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { ArrowRight, Colorfilter, MagicStar, Play } from 'iconsax-react';
 
+import { useAuthStore } from '@/store/auth';
+import { useEffect } from 'react';
+
 export default function Home() {
+  const { session, fetchSession } = useAuthStore();
+
+  useEffect(() => {
+    fetchSession();
+  }, [fetchSession]);
+
   return (
     <div className="flex flex-col min-h-screen bg-black overflow-x-hidden selection:bg-white/20">
       {/* Background Ambience */}
@@ -48,11 +57,13 @@ export default function Home() {
                   </filter>
                 </defs>
                 <motion.path
-                  d="M 95 14 Q 50 12 5 16"
+                  d="M 5 20 L 95 10"
                   fill="transparent"
-                  stroke="white"
-                  strokeWidth="8"
+                  stroke="#ef4444"
+                  strokeWidth="10"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeOpacity={0.9}
                   filter="url(#brush-stroke)"
                   initial={{ pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
@@ -79,17 +90,34 @@ export default function Home() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center gap-6"
         >
-          <Button
-            size="lg"
-            className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
-          >
-            Get Early Access
-            <ArrowRight
-              size={20}
-              color="currentColor"
-              className="ml-2 group-hover:translate-x-1 transition-transform"
-            />
-          </Button>
+          {session ? (
+            <a href={process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/'}>
+              <Button
+                size="lg"
+                className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
+              >
+                Launch Skeet
+                <ArrowRight
+                  size={20}
+                  color="currentColor"
+                  className="ml-2 group-hover:translate-x-1 transition-transform"
+                />
+              </Button>
+            </a>
+          ) : (
+            <Button
+              size="lg"
+              className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
+            >
+              Get Early Access
+              <ArrowRight
+                size={20}
+                color="currentColor"
+                className="ml-2 group-hover:translate-x-1 transition-transform"
+              />
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="lg"
@@ -260,7 +288,7 @@ export default function Home() {
           </motion.div>
 
           {/* Marquee Container */}
-          <div className="flex overflow-hidden relative w-full [mask-image:linear-gradient(to_right,transparent,white_10%,white_90%,transparent)] group">
+          <div className="flex overflow-hidden relative w-full mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)] group">
             {/* Inner Moving Track - Duplicated functionality for seamless loop */}
             <div className="flex gap-6 w-max animate-infinite-scroll group-hover:[animation-play-state:paused] px-3">
               {[...Array(4)].map((_, loopIndex) => (
