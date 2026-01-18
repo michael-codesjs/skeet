@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+
+  --color-brand-primary: #ffffff;
+  --color-brand-secondary: #aaaaaa;
+  --color-brand-dark: #000000;
+  --color-brand-card: #0a0a0a;
+  --color-brand-border: #333333;
+
+  --font-geist-sans: 'Geist', 'Inter', sans-serif;
+  --font-geist-mono: 'Geist Mono', 'Roboto Mono', monospace;
+
+  --animate-float: float 6s ease-in-out infinite;
+}
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility text-gradient {
+  background: linear-gradient(to bottom right, #ffffff 30%, #999999 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+@utility bg-grid-pattern {
+  background-size: 60px 60px;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+}
+
+@utility hero-glow {
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  filter: blur(80px);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
