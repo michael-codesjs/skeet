@@ -46,3 +46,7 @@ generated
 # Infra
 cdk.out
 .terraform
+
+
+# Data
+training

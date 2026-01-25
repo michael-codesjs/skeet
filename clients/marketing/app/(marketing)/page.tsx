@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { ArrowRight, Colorfilter, MagicStar, Play } from 'iconsax-react';
+import { ArrowRight, MagicStar, Play } from 'iconsax-react';
 
 import { useAuthStore } from '@/store/auth';
 import { useEffect } from 'react';
@@ -22,7 +22,6 @@ export default function Home() {
       <div className="fixed top-[-20%] left-[10%] w-[80%] h-[80%] hero-glow rounded-full opacity-40 mix-blend-screen pointer-events-none animate-float" />
 
       {/* Additional ambient glow for depth */}
-      <div className="fixed bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
 
       {/* Hero Section */}
       <section className="relative px-6 pt-12 pb-20 flex flex-col items-center text-center max-w-7xl mx-auto z-10">
@@ -39,38 +38,6 @@ export default function Home() {
             <span className="text-gradient drop-shadow-[0_0_30px_rgba(255,255,255,0.2)]">
               timeline.
             </span>
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <svg
-                viewBox="0 0 100 30"
-                className="w-full h-full overflow-visible"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <filter id="brush-stroke" x="-50%" y="-50%" width="200%" height="200%">
-                    <feTurbulence
-                      type="fractalNoise"
-                      baseFrequency="0.05 0.5"
-                      numOctaves="3"
-                      result="noise"
-                    />
-                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" />
-                  </filter>
-                </defs>
-                <motion.path
-                  d="M 5 20 L 95 10"
-                  fill="transparent"
-                  stroke="#ef4444"
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeOpacity={0.9}
-                  filter="url(#brush-stroke)"
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ delay: 0.5, duration: 0.4, ease: 'easeOut' }}
-                />
-              </svg>
-            </div>
           </span>
         </motion.h1>
 
@@ -136,135 +103,177 @@ export default function Home() {
           className="mt-24 w-full aspect-16/10 glass-card rounded-2xl flex items-center justify-center relative overflow-hidden ring-1 ring-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]"
           style={{ perspective: '1000px' }}
         >
-          {/* Screenshot Placeholder */}
-          <div className="absolute inset-0 bg-neutral-900/50 flex items-center justify-center">
-            <span className="text-neutral-500 font-mono text-sm">App Screenshot Container</span>
+          {/* Studio UI Placeholder */}
+          <div className="absolute inset-0 bg-[#0A0A0A] flex items-center justify-center">
+            <span className="text-neutral-600 font-mono text-sm">Studio UI Placeholder</span>
           </div>
         </motion.div>
       </section>
 
-      {/* Features Section - Simplified */}
-      <section className="px-6 py-32 max-w-7xl mx-auto w-full z-10">
-        <div className="mb-32 text-center">
+      {/* Manifesto Section - derived from branding.md */}
+      <section className="relative px-6 py-32 max-w-7xl mx-auto w-full z-10">
+        <div className="mb-24 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-block mb-6 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-sm font-medium text-neutral-300 backdrop-blur-md"
+          >
+            Zero-Timeline Editing
+          </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-4xl md:text-7xl font-bold mb-8 tracking-tighter"
           >
-            Direct. <span className="text-gradient">Don't edit.</span>
+            Stop <span className="text-neutral-600 line-through decoration-red-500">Editing.</span>{' '}
+            <br />
+            Start <span className="text-gradient">Directing.</span>
           </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-xl text-neutral-400 max-w-2xl mx-auto font-light"
-          >
-            Focus on the story. Let Skeet handle the cut, color, and sync.
-          </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* 1. Multimodal Intelligence */}
+        <div className="relative max-w-3xl mx-auto mt-20 space-y-32">
+          {/* Central Vertical Track connecting the story */}
+          <div className="absolute left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 bg-linear-to-b from-purple-500/30 via-blue-500/30 to-orange-500/30 hidden md:block" />
+
+          {/* 1. The Scout */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="glass-card p-8 rounded-4xl border border-white/10 hover:border-purple-500/30 transition-colors duration-300 group"
+            className="relative flex flex-col items-center text-center group"
           >
-            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-8 group-hover:bg-purple-500/10 transition-colors">
+            {/* Icon Marker */}
+            <div className="shrink-0 relative z-10 w-24 h-24 rounded-3xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center shadow-[0_0_50px_-10px_rgba(168,85,247,0.25)] group-hover:scale-110 transition-transform duration-500 mb-8">
               <MagicStar
-                size={28}
-                color="currentColor"
+                size={36}
                 className="text-purple-400"
-                variant="Bulk"
+                variant="Bold"
+                color="currentColor"
               />
+              <div className="absolute inset-0 bg-purple-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            <h3 className="text-2xl font-bold text-white mb-4">Multimodal Intelligence</h3>
-            <p className="text-neutral-400 leading-relaxed mb-8 h-24">
-              It doesn't just see pixels; it understands humor, tension, and beauty. Skeet watches
-              your footage like a human would.
-            </p>
-
-            <ul className="space-y-3">
-              {['Scene understanding', 'Technical quality scoring', 'Highlight detection'].map(
-                (item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-neutral-300">
-                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
-                    {item}
-                  </li>
-                ),
-              )}
-            </ul>
+            {/* Content */}
+            <div className="relative z-10 bg-black/40 backdrop-blur-sm p-4 rounded-2xl border border-white/0">
+              <h3 className="text-3xl font-bold text-white mb-4">The Scout</h3>
+              <p className="text-xl text-neutral-400 leading-relaxed font-light max-w-lg mx-auto">
+                It starts with raw data. Skeet watches hours of your footage, identifying hero
+                shots, filtering out shaky takes, and tagging every moment with semantic context.
+              </p>
+            </div>
           </motion.div>
 
-          {/* 2. Audio-Reactive Editing */}
+          {/* 2. The Director */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="glass-card p-8 rounded-4xl border border-white/10 hover:border-blue-500/30 transition-colors duration-300 group"
+            className="relative flex flex-col items-center text-center group"
           >
-            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-8 group-hover:bg-blue-500/10 transition-colors">
-              {/* Using Play/Audio related icon */}
-              <Play size={28} color="currentColor" className="text-blue-400" variant="Bulk" />
+            {/* Icon Marker */}
+            <div className="shrink-0 relative z-10 w-24 h-24 rounded-3xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center shadow-[0_0_50px_-10px_rgba(59,130,246,0.25)] group-hover:scale-110 transition-transform duration-500 mb-8">
+              <Play size={36} className="text-blue-400" variant="Bold" color="currentColor" />
+              <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            <h3 className="text-2xl font-bold text-white mb-4">Audio-Reactive Sync</h3>
-            <p className="text-neutral-400 leading-relaxed mb-8 h-24">
-              Analyzes audio transients to perfectly align cuts with the rhythm. It removes silence
-              and creates flow automatically.
-            </p>
-
-            <ul className="space-y-3">
-              {['Transient-aware cutting', 'Automatic silence removal', 'Pacing via prompts'].map(
-                (item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-neutral-300">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50" />
-                    {item}
-                  </li>
-                ),
-              )}
-            </ul>
+            {/* Content */}
+            <div className="relative z-10 bg-black/40 backdrop-blur-sm p-4 rounded-2xl border border-white/0">
+              <h3 className="text-3xl font-bold text-white mb-4">The Director</h3>
+              <p className="text-xl text-neutral-400 leading-relaxed font-light max-w-lg mx-auto">
+                You provide the intent. Describe the "vibe", specify the pacing, or reference a
+                style. The Director agent interprets your vision and converts it into editing
+                decisions.
+              </p>
+            </div>
           </motion.div>
 
-          {/* 3. Semantic Color Grading */}
+          {/* 3. The Assembly */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="glass-card p-8 rounded-4xl border border-white/10 hover:border-orange-500/30 transition-colors duration-300 group"
+            className="relative flex flex-col items-center text-center group"
           >
-            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-8 group-hover:bg-orange-500/10 transition-colors">
-              <Colorfilter
-                size={28}
-                color="currentColor"
+            {/* Icon Marker */}
+            <div className="shrink-0 relative z-10 w-24 h-24 rounded-3xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center shadow-[0_0_50px_-10px_rgba(249,115,22,0.25)] group-hover:scale-110 transition-transform duration-500 mb-8">
+              <ArrowRight
+                size={36}
                 className="text-orange-400"
-                variant="Bulk"
+                variant="Bold"
+                color="currentColor"
               />
+              <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
-            <h3 className="text-2xl font-bold text-white mb-4">Semantic Color</h3>
-            <p className="text-neutral-400 leading-relaxed mb-8 h-24">
-              Describe the look you want—'Cyberpunk', 'Vintage', 'Gloomy'—and Skeet matches the
-              grade instantly.
-            </p>
-
-            <ul className="space-y-3">
-              {['Natural Language Looks', 'Multi-camera matching', 'Grain & texture emulation'].map(
-                (item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-neutral-300">
-                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500/50" />
-                    {item}
-                  </li>
-                ),
-              )}
-            </ul>
+            {/* Content */}
+            <div className="relative z-10 bg-black/40 backdrop-blur-sm p-4 rounded-2xl border border-white/0">
+              <h3 className="text-3xl font-bold text-white mb-4">The Assembly</h3>
+              <p className="text-xl text-neutral-400 leading-relaxed font-light max-w-lg mx-auto">
+                The final cut is rendered instantly. Every beat is synced, every color is graded to
+                your prompt, and the sequence is exported, ready for the world.
+              </p>
+            </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* How it Works Section */}
+      <section className="py-24 relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-20"
+          >
+            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tighter">
+              A collaborative <span className="text-gradient">creative engine.</span>
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            {/* Connecting line for desktop */}
+            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-linear-to-r from-transparent via-white/10 to-transparent z-0" />
+
+            {[
+              {
+                step: '01',
+                title: 'Connect',
+                desc: 'Ingest any format instantly.',
+              },
+              {
+                step: '02',
+                title: 'Direct',
+                desc: 'Tell Skeet what you want.',
+              },
+              {
+                step: '03',
+                title: 'Refine',
+                desc: 'Perfect the cut in real-time.',
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.2 }}
+                className="relative z-10 flex flex-col items-center text-center group"
+              >
+                <div className="w-24 h-24 rounded-full bg-black border border-white/10 flex items-center justify-center text-2xl font-bold font-mono text-white/30 group-hover:text-white group-hover:border-white/30 group-hover:bg-white/5 transition-all duration-300 mb-8 shadow-[0_0_30px_-10px_rgba(255,255,255,0.1)]">
+                  {item.step}
+                </div>
+                <h3 className="text-xl font-bold text-white mb-4">{item.title}</h3>
+                <p className="text-neutral-400 font-light leading-relaxed max-w-xs mx-auto">
+                  {item.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -369,6 +378,42 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section className="py-32 relative overflow-hidden">
+        <div className="absolute inset-0 bg-blue-900/5 blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-5xl md:text-8xl font-bold mb-8 tracking-tighter"
+          >
+            Ready to cut <br />
+            <span className="text-neutral-500">the noise?</span>
+          </motion.h2>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+          >
+            <Button
+              size="lg"
+              className="group h-20 px-12 text-xl rounded-full bg-white text-black hover:bg-neutral-200 hover:scale-105 transition-all duration-300 shadow-[0_0_50px_-10px_rgba(255,255,255,0.3)]"
+            >
+              Get Early Access
+              <ArrowRight
+                size={24}
+                className="ml-3 group-hover:translate-x-1 transition-transform"
+              />
+            </Button>
+            <p className="mt-8 text-neutral-500 text-sm">
+              No credit card required • Limited spots available
+            </p>
+          </motion.div>
         </div>
       </section>
     </div>

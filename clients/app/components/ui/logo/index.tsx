@@ -20,12 +20,12 @@ export const Logo: React.FC<LogoProps> = ({ variant = 'star', className, ...prop
           {...props}
         >
           <path
-            d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
+            d="M12 2C13 8 16 11 22 12C16 13 13 16 12 22C11 16 8 13 2 12C8 11 11 8 12 2Z"
             className="fill-current"
             opacity="0.2"
           />
           <path
-            d="M12 6L13.5 10.5L18 12L13.5 13.5L12 18L10.5 13.5L6 12L10.5 10.5L12 6Z"
+            d="M12 6C12.5 10 14 11.5 18 12C14 12.5 12.5 14 12 18C11.5 14 10 12.5 6 12C10 11.5 11.5 10 12 6Z"
             className="fill-white"
           />
         </svg>
@@ -55,9 +55,27 @@ export const Logo: React.FC<LogoProps> = ({ variant = 'star', className, ...prop
           className={twMerge(baseClasses, className)}
           {...props}
         >
-          <path d="M4 4H10L20 20H14L4 4Z" className="fill-white" />
-          <path d="M20 4H14L16.5 8L22.5 8L20 4Z" className="fill-white/60" />
-          <path d="M4 20H10L7.5 16L1.5 16L4 20Z" className="fill-white/60" />
+          <path
+            d="M4 4H10L20 20H14L4 4Z"
+            className="fill-white"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M20 4H14L16.5 8L22.5 8L20 4Z"
+            className="fill-white/60"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M4 20H10L7.5 16L1.5 16L4 20Z"
+            className="fill-white/60"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
         </svg>
       );
     case 'timeline-slice':
@@ -79,15 +97,15 @@ export const Logo: React.FC<LogoProps> = ({ variant = 'star', className, ...prop
           {/* Vertical Bars Group */}
           <g mask="url(#slice-mask-final)">
             {/* Bar 1 */}
-            <rect x="2" y="9" width="3" height="6" className="fill-white" />
+            <rect x="2" y="9" width="3" height="6" rx="1.5" className="fill-white" />
             {/* Bar 2 */}
-            <rect x="6.5" y="6" width="3" height="12" className="fill-white" />
+            <rect x="6.5" y="6" width="3" height="12" rx="1.5" className="fill-white" />
             {/* Bar 3 (Center) */}
-            <rect x="11" y="2" width="3" height="20" className="fill-white" />
+            <rect x="11" y="2" width="3" height="20" rx="1.5" className="fill-white" />
             {/* Bar 4 */}
-            <rect x="15.5" y="6" width="3" height="12" className="fill-white" />
+            <rect x="15.5" y="6" width="3" height="12" rx="1.5" className="fill-white" />
             {/* Bar 5 */}
-            <rect x="20" y="9" width="3" height="6" className="fill-white" />
+            <rect x="20" y="9" width="3" height="6" rx="1.5" className="fill-white" />
           </g>
 
           {/* The Blade Line */}
@@ -110,13 +128,19 @@ export const Logo: React.FC<LogoProps> = ({ variant = 'star', className, ...prop
           className={twMerge(baseClasses, className)}
           {...props}
         >
-          {/* Main Star Body */}
+          {/* Main Star Body - More Rounded */}
           <path
-            d="M12 2C12.8 8.5 15.5 11.2 22 12C15.5 12.8 12.8 15.5 12 22C11.2 15.5 8.5 12.8 2 12C8.5 11.2 11.2 8.5 12 2Z"
+            d="M12 4C13 9 15 11 20 12C15 13 13 15 12 20C11 15 9 13 4 12C9 11 11 9 12 4Z"
             className="fill-white"
           />
           {/* Subtle Cut/Slice Effect */}
-          <path d="M12 2V12M12 12H22" stroke="black" strokeWidth="0.5" strokeOpacity="0.2" />
+          <path
+            d="M12 4V12M12 12H20"
+            stroke="black"
+            strokeWidth="0.8"
+            strokeOpacity="0.2"
+            strokeLinecap="round"
+          />
         </svg>
       );
   }

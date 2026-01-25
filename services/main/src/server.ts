@@ -10,6 +10,12 @@ import express from 'express';
 import http from 'http';
 import morgan from 'morgan';
 
+// Worker routes
+import assembleSkeetWorker from './workers/assemble-skeet';
+import geminiAnalyzerWorker from './workers/gemini-analyzer';
+import geminiScoutWorker from './workers/gemini-scout';
+import thumbnailWorker from './workers/thumbnail';
+
 export async function createServer() {
   const app = express();
   const httpServer = http.createServer(app);
@@ -46,6 +52,12 @@ export async function createServer() {
   });
 
   app.all('/api/auth/*', toNodeHandler(auth));
+
+  // Worker endpoints (QStash-triggered)
+  app.use('/api/workers', thumbnailWorker);
+  app.use('/api/workers', geminiScoutWorker);
+  app.use('/api/workers', geminiAnalyzerWorker);
+  app.use('/api/workers', assembleSkeetWorker);
 
   return { app, httpServer, server };
 }

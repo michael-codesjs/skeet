@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { extendType, nonNull, objectType, stringArg } from 'nexus';
-import { getUploadUrl } from '../../../lib/storage';
+import { S3Service } from '../../../lib/storage/s3';
 
 export const ProfilePictureUploadUrlResult = objectType({
   name: 'ProfilePictureUploadUrlResult',
@@ -22,7 +22,7 @@ export const ProfileMutations = extendType({
         const userId = ctx.user!.id; // Safe due to permissions
 
         const key = `users/${userId}/profile-picture-${randomUUID()}`;
-        const uploadUrl = await getUploadUrl(key, contentType);
+        const uploadUrl = await S3Service.getInstance().getUploadUrl(key, contentType);
 
         return {
           uploadUrl,

@@ -8,10 +8,10 @@ export default function Home() {
 
         <div className="flex gap-4">
           <Link
-            href="/dashboard"
-            className="rounded-full bg-white text-black px-6 py-3 font-semibold hover:bg-gray-200 transition-colors"
+            href="/projects"
+            className="rounded-full bg-white text-black px-8 py-4 font-bold hover:scale-105 transition-all text-lg"
           >
-            Go to Dashboard
+            Enter App
           </Link>
         </div>
       </main>

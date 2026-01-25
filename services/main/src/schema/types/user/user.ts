@@ -1,4 +1,4 @@
-import { getDownloadUrl } from '@/lib/storage';
+import { S3Service } from '@/lib/storage/s3';
 import { extendType, objectType, stringArg } from 'nexus';
 import * as NexusPrisma from 'nexus-prisma';
 const { User: UserNexus } = NexusPrisma;
@@ -15,10 +15,12 @@ export const User = objectType({
     t.field('profilePictureKey', UserNexus.profilePictureKey);
     t.field('createdAt', UserNexus.createdAt);
     t.field('updatedAt', UserNexus.updatedAt);
+    t.field('projects', UserNexus.projects);
+    t.field('videoFiles', UserNexus.videoFiles);
     t.string('profilePictureComputed', {
       resolve: async (root) => {
         if (!root.profilePictureKey) return null;
-        return getDownloadUrl(root.profilePictureKey);
+        return S3Service.getInstance().getDownloadUrl(root.profilePictureKey);
       },
     });
   },

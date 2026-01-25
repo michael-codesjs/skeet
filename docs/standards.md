@@ -14,7 +14,7 @@ We use **Yarn** for all package management. Please do not use `npm` or `pnpm`.
 - **File Naming**: All file names should be in `kebab-case` (e.g., `file-name.extension`). Do not use `CamelCase` or `PascalCase` for filenames.
 - **Component Structure**: Group components in their own directories (e.g., `/components/ui/button.tsx`).
 
-- **Types vs Interfaces**: Use `type` for defining shapes of objects, functions, etc. Only use `interface` if the type is intended to be implemented by a class.
+- **Types vs Interfaces**: **ALWAYS** use `type` for defining shapes of objects, props, and state. Do not use `interface` unless you specifically need features like declaration merging (rare) or are implementing a class.
 
 ## Data Fetching (GraphQL)
 

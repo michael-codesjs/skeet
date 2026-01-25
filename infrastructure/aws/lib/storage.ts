@@ -13,7 +13,7 @@ export class StorageStack extends cdk.Stack {
     const isProd = props.stage === 'prod';
 
     new s3.Bucket(this, 'StorageBucket', {
-      bucketName: `skeet-${props.stage}`,
+      bucketName: `skeet-media-${props.stage}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
@@ -31,6 +31,13 @@ export class StorageStack extends cdk.Stack {
           ],
           allowedOrigins: ['*'],
           allowedHeaders: ['*'],
+          exposedHeaders: [
+            'ETag',
+            'x-amz-server-side-encryption',
+            'x-amz-request-id',
+            'x-amz-id-2',
+          ],
+          maxAge: 3000,
         },
       ],
       lifecycleRules: [

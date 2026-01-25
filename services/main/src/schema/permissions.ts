@@ -13,21 +13,17 @@ const isAuthenticated = rule({ cache: 'contextual' })(async (
 export const permissions = shield(
   {
     Query: {
-      '*': allow, // By default allow reads, unless specific query overrides
+      '*': allow,
       me: isAuthenticated,
-      // Add other restricted queries here
+      project: isAuthenticated,
+      projects: isAuthenticated,
     },
     Mutation: {
-      '*': isAuthenticated, // Secure all mutations by default
-      // We can open up specific mutations if needed, e.g.:
-      updateUser: isAuthenticated,
-      requestProfilePictureUploadUrl: isAuthenticated,
-      confirmProfilePictureUpload: isAuthenticated,
+      '*': isAuthenticated,
     },
-    // Add other types if field-level permissions are needed
   },
   {
-    allowExternalErrors: true, // Pass through original errors
+    allowExternalErrors: true,
     debug: process.env.NODE_ENV !== 'production',
   },
 );
