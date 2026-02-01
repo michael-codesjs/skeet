@@ -124,13 +124,50 @@ export class Skeet {
     });
   }
 
-  public async stream(messages: MessageListInput, threadId: string) {
-    console.log(`[Skeet] 🚀 Streaming session for ${this.projectId} (Thread: ${threadId})`);
+  public createThread() {
+    return this.memory.createThread({
+      resourceId: this.projectId,
+    });
+  }
 
-    return await this.orchestrator.stream(messages, {
+  public listThreads(params: { page?: number; perPage?: number }) {
+    return this.memory.listThreads({
+      filter: {
+        resourceId: this.projectId,
+      },
+      orderBy: {
+        direction: 'DESC',
+        field: 'createdAt',
+      },
+      page: params.page || 0,
+      perPage: params.perPage || 10,
+    });
+  }
+
+  public getThreadHistory(threadId: string, params: { page?: number; perPage?: number }) {
+    return this.memory.recall({
+      threadId,
+      page: params.page || 0,
+      perPage: params.perPage || 20,
+    });
+  }
+
+  private async getOrCreateThread(threadId?: string) {
+    if (threadId) return threadId;
+
+    const thread = await this.createThread();
+    return thread.id;
+  }
+
+  public async stream(messages: MessageListInput, threadId?: string) {
+    const activeThreadId = await this.getOrCreateThread(threadId);
+
+    console.log(`[Skeet] 🚀 Streaming session for ${this.projectId} (Thread: ${activeThreadId})`);
+
+    const runOutput = await this.orchestrator.stream(messages, {
       memory: {
         resource: this.projectId,
-        thread: threadId,
+        thread: activeThreadId,
       },
       providerOptions: {
         google: {
@@ -141,5 +178,10 @@ export class Skeet {
         },
       },
     });
+
+    return {
+      runOutput,
+      threadId: activeThreadId,
+    };
   }
 }

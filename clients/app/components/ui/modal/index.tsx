@@ -14,6 +14,7 @@ type ModalProps = {
   footer?: React.ReactNode;
   className?: string;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+  backdropBlur?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 };
 
 const maxWithClasses = {
@@ -25,6 +26,16 @@ const maxWithClasses = {
   full: 'max-w-[95vw]',
 };
 
+const blurClasses = {
+  none: 'backdrop-blur-none',
+  sm: 'backdrop-blur-sm',
+  md: 'backdrop-blur-md',
+  lg: 'backdrop-blur-lg',
+  xl: 'backdrop-blur-xl',
+  '2xl': 'backdrop-blur-2xl',
+  '3xl': 'backdrop-blur-3xl',
+};
+
 export const Modal = ({
   isOpen,
   onClose,
@@ -34,6 +45,7 @@ export const Modal = ({
   footer,
   className,
   maxWidth = 'md',
+  backdropBlur = 'sm',
 }: ModalProps) => {
   useEffect(() => {
     if (isOpen) {
@@ -56,7 +68,7 @@ export const Modal = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            className={cn('fixed inset-0 bg-black/60 transition-all', blurClasses[backdropBlur])}
           />
 
           {/* Modal Content */}
@@ -72,18 +84,29 @@ export const Modal = ({
             )}
           >
             {/* Header - Fixed height */}
-            <div className="flex shrink-0 items-start justify-between border-b border-white/5 p-6">
-              <div>
-                {title && <h3 className="text-xl font-semibold text-white">{title}</h3>}
-                {description && <p className="mt-1 text-sm text-neutral-400">{description}</p>}
+            {(title || description) && (
+              <div className="flex shrink-0 items-start justify-between border-b border-white/5 p-6">
+                <div>
+                  {title && <h3 className="text-xl font-semibold text-white">{title}</h3>}
+                  {description && <p className="mt-1 text-sm text-neutral-400">{description}</p>}
+                </div>
+                <button
+                  onClick={onClose}
+                  className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  <Add className="rotate-45" size={24} color="currentColor" />
+                </button>
               </div>
+            )}
+
+            {!title && !description && (
               <button
                 onClick={onClose}
-                className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
+                className="absolute top-4 right-4 z-50 rounded-full p-1 text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <Add className="rotate-45" size={24} color="currentColor" />
               </button>
-            </div>
+            )}
 
             {/* Body - Scrollable */}
             <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">

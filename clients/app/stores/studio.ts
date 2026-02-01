@@ -157,6 +157,8 @@ export type Thread = {
 type StudioState = {
   // State
   project: Project | null;
+  projects: Project[]; // Local projects list
+  activeProjectId: string | null;
   activeMedia: MediaItem | null;
   isLoading: boolean;
   searchQuery: string;
@@ -170,9 +172,13 @@ type StudioState = {
   threads: Thread[];
   activeThreadId: string | null;
   isMessagesLoading: boolean;
+  isCreatingProject: boolean;
 
   // Actions
   setProject: (project: Project) => void;
+  setProjects: (projects: Project[]) => void;
+  setActiveProjectId: (id: string | null) => void;
+  setIsCreatingProject: (isOpen: boolean) => void;
   setActiveMedia: (media: MediaItem | null) => void;
   setSearchQuery: (query: string) => void;
   setFilterType: (type: 'all' | 'photo' | 'video' | 'audio') => void;
@@ -193,8 +199,45 @@ type StudioState = {
   applyEditOperations: (operations: any[]) => void;
 };
 
+const STORAGE_KEY = 'skeet_projects';
+
+const saveToLocal = (projects: Project[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+  }
+};
+
+const loadFromLocal = (): Project[] => {
+  if (typeof window !== 'undefined') {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+  return [];
+};
+
+const ACTIVE_PROJECT_KEY = 'skeet_active_project_id';
+
+const saveActiveIdToLocal = (id: string | null) => {
+  if (typeof window !== 'undefined') {
+    if (id) {
+      localStorage.setItem(ACTIVE_PROJECT_KEY, id);
+    } else {
+      localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    }
+  }
+};
+
+const loadActiveIdFromLocal = (): string | null => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(ACTIVE_PROJECT_KEY);
+  }
+  return null;
+};
+
 export const useStudioStore = create<StudioState>((set, get) => ({
   project: null,
+  projects: loadFromLocal(),
+  activeProjectId: loadActiveIdFromLocal(),
   activeMedia: null,
   searchQuery: '',
   filterType: 'all',
@@ -206,6 +249,7 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   threads: [],
   activeThreadId: null,
   isMessagesLoading: false,
+  isCreatingProject: false,
 
   setProject: (project) => {
     // Ensure we have an OTIO structure to work with
@@ -215,11 +259,34 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       media: project.media || [],
     };
 
-    set({
-      project: projectWithOTIO,
-      filteredMedia: project.media || [],
+    set((state) => {
+      // Sync project update to projects list
+      const updatedProjects = state.projects.map((p) =>
+        p.id === project.id ? { ...p, ...projectWithOTIO } : p,
+      );
+      if (!updatedProjects.find((p) => p.id === project.id)) {
+        updatedProjects.push(projectWithOTIO);
+      }
+      saveToLocal(updatedProjects);
+      saveActiveIdToLocal(project.id);
+
+      return {
+        project: projectWithOTIO,
+        projects: updatedProjects,
+        activeProjectId: project.id,
+        filteredMedia: project.media || [],
+      };
     });
   },
+  setProjects: (projects) => {
+    saveToLocal(projects);
+    set({ projects });
+  },
+  setActiveProjectId: (id) => {
+    saveActiveIdToLocal(id);
+    set({ activeProjectId: id });
+  },
+  setIsCreatingProject: (isOpen) => set({ isCreatingProject: isOpen }),
   setActiveMedia: (media) => set({ activeMedia: media }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setFilterType: (type) => set({ filterType: type }),
