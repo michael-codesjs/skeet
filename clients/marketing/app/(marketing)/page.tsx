@@ -138,6 +138,7 @@ export default function Home() {
           <div className="absolute left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 bg-linear-to-b from-purple-500/30 via-blue-500/30 to-orange-500/30 hidden md:block" />
 
           {/* 1. The Scout */}
+          {/* 1. The Scout */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -221,161 +222,244 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How it Works Section */}
-      <section className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tighter">
-              A collaborative <span className="text-gradient">creative engine.</span>
-            </h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            {/* Connecting line for desktop */}
-            <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-linear-to-r from-transparent via-white/10 to-transparent z-0" />
-
-            {[
-              {
-                step: '01',
-                title: 'Connect',
-                desc: 'Ingest any format instantly.',
-              },
-              {
-                step: '02',
-                title: 'Direct',
-                desc: 'Tell Skeet what you want.',
-              },
-              {
-                step: '03',
-                title: 'Refine',
-                desc: 'Perfect the cut in real-time.',
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.2 }}
-                className="relative z-10 flex flex-col items-center text-center group"
-              >
-                <div className="w-24 h-24 rounded-full bg-black border border-white/10 flex items-center justify-center text-2xl font-bold font-mono text-white/30 group-hover:text-white group-hover:border-white/30 group-hover:bg-white/5 transition-all duration-300 mb-8 shadow-[0_0_30px_-10px_rgba(255,255,255,0.1)]">
-                  {item.step}
-                </div>
-                <h3 className="text-xl font-bold text-white mb-4">{item.title}</h3>
-                <p className="text-neutral-400 font-light leading-relaxed max-w-xs mx-auto">
-                  {item.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+      {/* Testimonials Section */}
+      {/* Testimonials Section */}
+      <section className="py-32 border-t border-white/5 bg-[#000000] relative overflow-hidden">
+        {/* Floating 3D Assets for this section */}
+        <div className="absolute top-32 left-40 w-32 h-32 opacity-80 pointer-events-none animate-float-slow hidden lg:block">
+          <img
+            src="/assets/3d/quote.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten"
+          />
         </div>
-      </section>
-
-      {/* Testimonials Section */}
-      {/* Testimonials Section */}
-      <section className="py-32 border-t border-white/5 bg-neutral-900/30 relative overflow-hidden">
-        {/* Ambient background for section */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none" />
+        <div className="absolute bottom-40 right-10 w-40 h-40 opacity-80 pointer-events-none animate-float hidden lg:block">
+          <img
+            src="/assets/3d/heart.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten"
+          />
+        </div>
+        <div className="absolute top-40 right-[20%] w-32 h-32 opacity-60 pointer-events-none animate-float-delayed hidden lg:block">
+          <img
+            src="/assets/3d/star.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten"
+          />
+        </div>
+        <div className="absolute top-[40%] left-[5%] w-28 h-28 opacity-70 pointer-events-none animate-float-slow hidden lg:block">
+          <img
+            src="/assets/3d/bolt.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten"
+          />
+        </div>
+        <div className="absolute bottom-20 left-[20%] w-36 h-36 opacity-60 pointer-events-none animate-float hidden lg:block">
+          <img
+            src="/assets/3d/thumb.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten"
+          />
+        </div>
+        <div className="absolute top-[55%] right-[5%] w-32 h-32 opacity-70 pointer-events-none animate-float-delayed hidden lg:block">
+          <img
+            src="/assets/3d/play.png"
+            alt=""
+            className="w-full h-full object-contain mix-blend-lighten invert"
+          />
+        </div>
 
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-24"
           >
-            <h2 className="text-4xl md:text-6xl font-bold mb-6 tracking-tighter">
+            <h2 className="text-4xl md:text-7xl font-bold mb-8 tracking-tighter">
               Loved by <span className="text-gradient">creators.</span>
             </h2>
-            <p className="text-neutral-400 text-lg">The new standard for modern storytelling.</p>
+            <p className="text-neutral-400 text-xl font-light max-w-2xl mx-auto">
+              The new standard for modern storytelling. Trusted by the world's most innovative
+              teams.
+            </p>
           </motion.div>
 
-          {/* Marquee Container */}
-          <div className="flex overflow-hidden relative w-full mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)] group">
-            {/* Inner Moving Track - Duplicated functionality for seamless loop */}
-            <div className="flex gap-6 w-max animate-infinite-scroll group-hover:[animation-play-state:paused] px-3">
-              {[...Array(4)].map((_, loopIndex) => (
-                <div key={loopIndex} className="flex gap-6">
-                  {[
-                    {
-                      quote:
-                        "I haven't touched a timeline in weeks. Skeet just gets the vibe I'm going for instantly.",
-                      author: 'Sarah Jenkins',
-                      role: 'Travel Vlogger',
-                      image:
-                        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces',
-                    },
-                    {
-                      quote:
-                        'The audio sync is terrifyingly good. It cuts exactly where I would have cut, but in seconds.',
-                      author: 'Marcus Davis',
-                      role: 'Indie Filmmaker',
-                      image:
-                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
-                    },
-                    {
-                      quote:
-                        "Finally, an AI tool that doesn't feel like a toy. This is actual post-production power.",
-                      author: 'Alex Rivera',
-                      role: 'Content Creator',
-                      image:
-                        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces',
-                    },
-                    {
-                      quote:
-                        "It understands pacing better than most human editors I've hired. A total game changer.",
-                      author: 'Emily Chen',
-                      role: 'Documentary Director',
-                      image:
-                        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces',
-                    },
-                  ].map((testimonial, i) => (
-                    <div
-                      key={`${loopIndex}-${i}`}
-                      className="glass-card p-6 rounded-3xl border border-white/10 bg-white/2 hover:bg-white/4 transition-all duration-300 group/card min-w-[320px] max-w-[320px] flex flex-col justify-between"
-                    >
-                      <div>
-                        {/* 5 Stars */}
-                        <div className="flex gap-1 mb-6">
-                          {[...Array(5)].map((_, s) => (
-                            <MagicStar
-                              key={s}
-                              size={14}
-                              variant="Bold"
-                              className="text-yellow-500"
-                              color="currentColor"
-                            />
-                          ))}
-                        </div>
-
-                        <p className="text-base text-neutral-200 mb-8 leading-relaxed font-light">
-                          "{testimonial.quote}"
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/10">
-                          <img
-                            src={testimonial.image}
-                            alt={testimonial.author}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <div className="font-bold text-white text-sm">{testimonial.author}</div>
-                          <div className="text-xs text-neutral-500">{testimonial.role}</div>
-                        </div>
-                      </div>
-                    </div>
+          {/* Masonry-style Grid - Minimalist / No Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-20">
+            {/* Column 1 */}
+            <div className="space-y-12 md:space-y-20">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="group"
+              >
+                <div className="flex gap-1 mb-6 opacity-50 group-hover:opacity-100 transition-opacity">
+                  {[...Array(5)].map((_, i) => (
+                    <MagicStar
+                      key={i}
+                      size={14}
+                      variant="Bold"
+                      className="text-white"
+                      color="currentColor"
+                    />
                   ))}
                 </div>
-              ))}
+                <p className="text-xl md:text-2xl text-neutral-200 mb-8 leading-relaxed font-light">
+                  "I haven't touched a timeline in weeks. Skeet just gets the vibe I'm going for
+                  instantly. It's like having a pro editor in my pocket."
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 overflow-hidden bg-neutral-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces"
+                      alt="Sarah"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-lg">Sarah Jenkins</div>
+                    <div className="text-sm text-neutral-500">Travel Vlogger</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="group"
+              >
+                <p className="text-xl text-neutral-300 mb-6 leading-relaxed font-light">
+                  "The audio sync is terrifyingly good. It cuts exactly where I would have cut, but
+                  in seconds."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 overflow-hidden bg-neutral-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces"
+                      alt="Marcus"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="font-medium text-white">Marcus Davis</div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Column 2 */}
+            <div className="space-y-12 md:space-y-20 pt-0 md:pt-12">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="group"
+              >
+                <div className="flex gap-1 mb-6 opacity-50 group-hover:opacity-100 transition-opacity">
+                  {[...Array(5)].map((_, i) => (
+                    <MagicStar
+                      key={i}
+                      size={14}
+                      variant="Bold"
+                      className="text-white"
+                      color="currentColor"
+                    />
+                  ))}
+                </div>
+                <p className="text-xl md:text-2xl text-white font-normal mb-6 leading-relaxed">
+                  "It understands pacing better than most human editors I've hired. A total game
+                  changer for our daily workflow."
+                </p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 overflow-hidden bg-neutral-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces"
+                      alt="Emily"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-lg">Emily Chen</div>
+                    <div className="text-sm text-neutral-500">Documentary Director</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.3 }}
+                className="group"
+              >
+                <p className="text-xl text-neutral-300 mb-6 leading-relaxed font-light">
+                  "Finally, an AI tool that doesn't feel like a toy. This is actual post-production
+                  power."
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 overflow-hidden bg-neutral-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces"
+                      alt="Alex"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="font-medium text-white">Alex Rivera</div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Column 3 */}
+            <div className="space-y-12 md:space-y-20">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.4 }}
+                className="group"
+              >
+                <div className="mb-6">
+                  <div className="text-5xl md:text-6xl font-bold text-white mb-2 tracking-tighter">
+                    3x
+                  </div>
+                  <div className="text-neutral-500 uppercase tracking-widest text-xs font-semibold">
+                    Faster Turnaround
+                  </div>
+                </div>
+                <p className="text-xl text-neutral-200 leading-relaxed font-light">
+                  "We're shipping 3x more content since adopting Skeet. The 'Refine' step is where
+                  the magic happens."
+                </p>
+                <div className="mt-8 pt-8 border-t border-white/5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full grayscale group-hover:grayscale-0 transition-all duration-500 overflow-hidden bg-neutral-900">
+                    <img
+                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces"
+                      alt="David"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-lg">David Park</div>
+                    <div className="text-sm text-neutral-500">Creative Lead</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.5 }}
+                className="p-8 rounded-3xl border border-white/5 flex items-center justify-center text-center h-64 bg-neutral-900/20 backdrop-blur-sm"
+              >
+                <div>
+                  <h3 className="text-3xl font-bold text-white mb-2">10k+</h3>
+                  <p className="text-neutral-400">Creators building with Skeet</p>
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>

@@ -31,7 +31,7 @@ type Project = {
   title: string;
   createdAt: string;
   status: 'DRAFT' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  clips: { thumbnail: string | null }[];
+  media: { thumbnail: string | null }[];
 };
 
 type GetProjectsData = {
@@ -117,8 +117,8 @@ export default function ProjectsPage() {
           {/* New Project Button */}
           <Link href="/projects/new">
             <button className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-lg hover:shadow-xl">
-              <Add size={20} color="currentColor" className="text-black" />
               <span>Create New</span>
+              <Add size={20} color="currentColor" className="text-black" />
             </button>
           </Link>
         </div>
@@ -140,8 +140,8 @@ export default function ProjectsPage() {
           </p>
           <Link href="/projects/new">
             <button className="flex items-center gap-2 px-8 py-3 bg-white text-black rounded-full font-bold hover:bg-neutral-200 transition-colors">
-              <Add size={20} color="currentColor" className="text-black" />
               Start Creation
+              <Add size={20} color="currentColor" className="text-black" />
             </button>
           </Link>
         </motion.div>
@@ -165,7 +165,7 @@ export default function ProjectsPage() {
       {hasProjects && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProjects.map((project, index) => {
-            const clips = project.clips?.filter((c) => c.thumbnail) || [];
+            const clips = project.media?.filter((c) => c.thumbnail) || [];
             const thumbnailCount = clips.length;
 
             return (

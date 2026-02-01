@@ -5,33 +5,40 @@ import { useToast } from '@/components/ui/toast';
 import { CREATE_PROJECT } from '@/graphql/mutations/projects';
 import { GET_PROJECTS } from '@/graphql/queries/projects';
 import { useMutation } from '@apollo/client/react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft2, Flash, FolderCloud } from 'iconsax-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+const createProjectSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+});
+
+type CreateProjectFormValues = z.infer<typeof createProjectSchema>;
 
 export default function NewProjectPage() {
   const router = useRouter();
   const toast = useToast();
-  const [title, setTitle] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateProjectFormValues>({
+    resolver: zodResolver(createProjectSchema),
+  });
 
   const [createProject] = useMutation<{ createProject: { id: string } }>(CREATE_PROJECT, {
     refetchQueries: [{ query: GET_PROJECTS }],
   });
 
-  const handleCreateProject = async () => {
-    if (!title || !prompt) {
-      toast.warning('Please provide a title and a description.');
-      return;
-    }
-
-    setIsCreating(true);
-
+  const onSubmit = async (data: CreateProjectFormValues) => {
     try {
       const { data: projectData } = await createProject({
-        variables: { title, prompt },
+        variables: { title: data.title, description: data.description },
       });
       const projectId = projectData?.createProject?.id;
       if (!projectId) throw new Error('Failed to retrieve project ID');
@@ -42,8 +49,6 @@ export default function NewProjectPage() {
     } catch (error) {
       console.error('Failed to create project:', error);
       toast.error('Something went wrong during creation. Please try again.');
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -62,45 +67,45 @@ export default function NewProjectPage() {
         <p className="text-neutral-400">Describe your vision and start your creative journey.</p>
       </div>
 
-      <div className="max-w-3xl space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-3xl space-y-8">
         <div className="space-y-6">
           <Input
             label="Project Title"
             type="text"
-            value={title}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
             placeholder="e.g. Summer Surf Trip 2026"
             startIcon={<FolderCloud color="currentColor" />}
+            error={errors.title?.message}
+            {...register('title')}
           />
 
           <Input
             label="Description"
             type="textarea"
             rows={6}
-            value={prompt}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
             placeholder="e.g. A cinematic 'day in the life' vlog highlighting a balanced work-from-home routine, deep work sessions, and high-performance lifestyle perks."
             startIcon={<Flash color="currentColor" />}
+            error={errors.description?.message}
+            {...register('description')}
           />
         </div>
-      </div>
 
-      <div className="flex justify-start pt-4">
-        <button
-          onClick={handleCreateProject}
-          disabled={isCreating || !title || !prompt}
-          className="flex items-center gap-3 rounded-full bg-white px-10 py-4 text-lg font-bold text-black transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
-        >
-          {isCreating ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
-              Creating Project...
-            </>
-          ) : (
-            'Generate Project'
-          )}
-        </button>
-      </div>
+        <div className="flex justify-start pt-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex items-center gap-3 rounded-full bg-white px-10 py-4 text-lg font-bold text-black transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                Creating Project...
+              </>
+            ) : (
+              'Generate Project'
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

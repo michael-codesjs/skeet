@@ -9,12 +9,8 @@ import cors from 'cors';
 import express from 'express';
 import http from 'http';
 import morgan from 'morgan';
-
-// Worker routes
-import assembleSkeetWorker from './workers/assemble-skeet';
-import geminiAnalyzerWorker from './workers/gemini-analyzer';
-import geminiScoutWorker from './workers/gemini-scout';
-import thumbnailWorker from './workers/thumbnail';
+import chatRouter from './routes/chat';
+import mediaWorker from './workers/media';
 
 export async function createServer() {
   const app = express();
@@ -53,11 +49,11 @@ export async function createServer() {
 
   app.all('/api/auth/*', toNodeHandler(auth));
 
+  // Chat endpoint (Mastra-triggered)
+  app.use('/api/chat', chatRouter);
+
   // Worker endpoints (QStash-triggered)
-  app.use('/api/workers', thumbnailWorker);
-  app.use('/api/workers', geminiScoutWorker);
-  app.use('/api/workers', geminiAnalyzerWorker);
-  app.use('/api/workers', assembleSkeetWorker);
+  app.use('/api/workers', mediaWorker);
 
   return { app, httpServer, server };
 }

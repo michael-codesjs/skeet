@@ -1,9 +1,15 @@
 import { scoreTraces, scoreTracesWorkflow } from '@mastra/core/evals/scoreTraces';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-import { join, resolve as resolve$2, dirname, extname, basename, isAbsolute, relative } from 'path';
 import { Mastra } from '@mastra/core';
+import * as dotenv from 'dotenv';
+import * as require$$3 from 'path';
+import { join, resolve as resolve$2, dirname, extname, basename, isAbsolute, relative } from 'path';
+import { createWorkflow, createStep } from '@mastra/core/workflows';
+import z$1, { z, ZodObject, ZodFirstPartyTypeKind } from 'zod';
 import { Agent, MessageList, isSupportedLanguageModel, tryGenerateWithJsonFallback, tryStreamWithJsonFallback } from '@mastra/core/agent';
+import { g as getProjectContext, c as commonjsRequire } from './index2.mjs';
+import { Memory as Memory$1 } from '@mastra/memory';
+import { PostgresStore } from '@mastra/pg';
+import { createTool, isVercelTool, Tool } from '@mastra/core/tools';
 import { readdir, readFile, mkdtemp, rm, writeFile, mkdir, copyFile, stat } from 'fs/promises';
 import * as https from 'https';
 import { fileURLToPath } from 'url';
@@ -12,9 +18,7 @@ import { Http2ServerRequest } from 'http2';
 import { Readable, Writable } from 'stream';
 import crypto$1 from 'crypto';
 import { readFileSync, existsSync, createReadStream, lstatSync } from 'fs';
-import { isVercelTool, createTool, Tool } from '@mastra/core/tools';
 import { zodToJsonSchema as zodToJsonSchema$1 } from '@mastra/core/utils/zod-to-json';
-import z$1, { z, ZodObject, ZodFirstPartyTypeKind } from 'zod';
 import { isProcessorWorkflow } from '@mastra/core/processors';
 import { MastraError, ErrorDomain, ErrorCategory } from '@mastra/core/error';
 import { generateEmptyFromSchema } from '@mastra/core/utils';
@@ -31,13 +35,145 @@ import { createRequire } from 'module';
 import util, { promisify } from 'util';
 import { ModelRouterLanguageModel, PROVIDER_REGISTRY } from '@mastra/core/llm';
 import { tmpdir } from 'os';
-import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { RequestContext } from '@mastra/core/request-context';
 import { MastraServerBase } from '@mastra/core/server';
 import { Buffer as Buffer$1 } from 'buffer';
 import { tools } from './tools.mjs';
+import 'tty';
+import 'async_hooks';
+import 'events';
 
-const prompt = `
+const prompt$3 = `
+You are the **Director Agent**, a virtuoso film editor for 'Skeet'.
+Your goal is to **sculpt time** using the provided media assets.
+
+**Your Creative Core (The Rule of Six):**
+1. **Emotion (51%)**: Does this cut feel true?
+2. **Story (23%)**: Does it advance the narrative?
+3. **Rhythm (10%)**: Does the cut hit the beat? (Use 'transient' data).
+4. **Eye-Trace (7%)**: Do the subject coordinates match?
+5. **2D/3D Continuity**: Respect spatial rules.
+
+**The Mission:**
+You have received a **User Request** and a list of **Available Assets** (with 'energy_score', 'transients', and 'tags').
+
+**Output Requirements:**
+Do NOT return the full OTIO file. Instead, return a **Manifest of Edit Operations** (JSON) to build the timeline.
+
+**Supported Operations:**
+- **APPEND**: Add a clip to the end of a track.
+- **INSERT**: Place a clip at a specific time (pushing others).
+- **OVERLAY**: Place a clip on a higher track (e.g., B-Roll on Track 2).
+- **TRIM**: Adjust the start/end of a clip.
+- **EFFECT**: Add a 'glitch', 'zoom', or 'filter' to a clip.
+
+**Reasoning Protocol:**
+1.  **Vibe Check**: Analyze the user's request ("Make it aggressive").
+2.  **Asset Selection**: Filter assets by 'energy_score' > 0.8.
+3.  **Rhythmic Lock**: Look at the 'Audio Metadata'. Align the 'cut_in_point' of the video to the nearest 'audio_transient'.
+4.  **Construct**: Generate the list of operations.
+
+**Response Format:**
+Strictly follow the 'EditDecisionListSchema' provided by the system.
+`;
+
+const editorAgent = new Agent({
+  id: "editor-agent",
+  name: "Director/Editor Agent",
+  instructions: {
+    role: "system",
+    content: prompt$3,
+    providerOptions: {
+      google: {}
+    }
+  },
+  model: "google/gemini-3-flash-preview",
+  tools: {
+    getProjectContext
+  }
+});
+
+const prompt$2 = `
+You are the **Lead Editor** for 'Skeet', a next-gen AI video platform.
+Your goal is to index footage not just by *what* it is, but *how it feels*. You are creating the "Universal Log" that allows our Director Agent to find the perfect shot.
+
+**Task:**
+Analyze the video chronologically. Break it down into **highly granular segments** (shots or micro-events).
+
+**Segmentation Rules:**
+1.  **New Segment Trigger**: Create a new segment whenever there is ANY change in:
+    *   Camera angle or movement type (e.g., from static to pan).
+    *   Action/Subject activity (e.g., "person walking" -> "person stops").
+    *   Lighting or distinct visual mood.
+2.  **Granularity**:
+    *   For continuous shots, break them down by **action beats**.
+    *   *Example*: A car driving shot should be split: "Car approaches" -> "Car passes camera" -> "Car drives away".
+    *   **Aim for short, precise segments (2-5 seconds)** unless the shot is completely static.
+
+**For EACH segment, analyze:**
+
+1.  **Time Range**: \`startTime\` and \`endTime\` (e.g., "00:00:00", "00:00:05").
+2.  **Subject Matter** (\`subject\`): Concise description.
+3.  **Aesthetics & Texture** (\`aesthetics\`):
+    - **Lighting**: "High Key", "Low Key", "Natural", "Neon", "Silhouette".
+    - **Texture**: "Clean", "Grainy/Vintage", "Motion Blur", "Sharp".
+    - **Color Palette**: List 3-4 dominant hex codes or color names.
+4.  **Camera Work** (\`camera\`):
+    - **Movement**: "Static", "Handheld Shake", "Smooth Gimbal", "Whip Pan".
+    - **Vector**: "Push In", "Pull Out", "Truck Left/Right", "Orbit".
+    - **Shot Size**: "Extreme Close-Up", "Medium", "Wide", "Drone/POV".
+5.  **Metrics** (\`metrics\`):
+    - **Energy** (0.0 - 1.0): 0.2 (Still) to 0.9 (High Action).
+    - **Momentum**: "High", "Medium", "Low", "None".
+6.  **Audio Analysis** (\`audio\`):
+    - **Listen Intently**: You have access to the audio track within the video file. Pay close attention to it.
+    - **Identify**: Distinct sounds (dialogue, music genres, specific sound effects like "sirens" or "footsteps").
+    - **Describe**: The audio mood and how it complements the visuals.
+    - **BPM/Rhythm**: Estimate the BPM if music is present and describe the rhythm (fast-paced, slow, irregular).
+7.  **Usage Tags** (\`usageTags\`): Context-aware tags (e.g., "Dreamy", "Chaos").
+8.  **Vector Context** (\`vectorContext\`):
+    - **CRITICAL**: Write a dense, natural language paragraph summarizing *everything* above.
+    - This string will be converted into a vector embedding for semantic search.
+    - *Format*: "[Subject] in a [Aesthetics] setting. The camera [Camera Movement] with [metrics] energy. Audio has [audio.bpm] BPM. Perfect for [Use Case]."
+
+**Also provide an overall \`summary\` for the entire video.**
+
+**JSON Output Schema:**
+\`\`\`json
+{
+  "summary": "Overall video summary string",
+  "segments": [
+    {
+      "startTime": "00:00:00",
+      "endTime": "00:00:05",
+      "subject": "...",
+      "aesthetics": { ... },
+      "camera": { ... },
+      "metrics": { ... },
+      "audio": { "bpm": 120, "peaks": [0.5, 1.2, ...] },
+      "usageTags": [ ... ],
+      "vectorContext": "..."
+    }
+  ]
+}
+\`\`\`
+`;
+
+const mediaAnalyzer = new Agent({
+  id: "media-analyzer",
+  name: "Media Analyzer Agent",
+  instructions: {
+    role: "system",
+    content: prompt$2,
+    providerOptions: {
+      google: {}
+    }
+  },
+  model: "google/gemini-3-flash-preview",
+  tools: {}
+});
+
+const prompt$1 = `
     You are a professional post-production editor with years of experience in the industry. 
 `;
 
@@ -46,23 +182,207 @@ const scout = new Agent({
   name: "Scout Agent",
   instructions: {
     role: "system",
+    content: prompt$1,
+    providerOptions: {
+      google: {}
+    }
+  },
+  model: "google/gemini-1.5-pro",
+  tools: {}
+});
+
+const connectionString = process.env.DATABASE_URL;
+const memory = new Memory$1({
+  storage: new PostgresStore({
+    id: "skeet-memory",
+    connectionString
+  })
+});
+
+const OperationType = z.enum(["APPEND", "INSERT", "OVERLAY", "TRIM", "EFFECT"]);
+const BaseOperation = z.object({
+  type: OperationType,
+  mediaId: z.string().describe("The ID of the media asset to operate on."),
+  trackId: z.number().default(0).describe("The video track index (0 = main, 1 = overlay, etc.).")
+});
+const AppendOperation = BaseOperation.extend({
+  type: z.literal("APPEND"),
+  sourceStartTime: z.number().optional().describe("Start time in the source clip (seconds)."),
+  sourceDuration: z.number().optional().describe("Duration to use from the source clip (seconds).")
+});
+const InsertOperation = BaseOperation.extend({
+  type: z.literal("INSERT"),
+  timelineStartTime: z.number().describe("Exact time on the timeline to insertion point (seconds)."),
+  sourceStartTime: z.number().optional().describe("Start time in the source clip (seconds)."),
+  sourceDuration: z.number().optional().describe("Duration to use from the source clip (seconds).")
+});
+const OverlayOperation = BaseOperation.extend({
+  type: z.literal("OVERLAY"),
+  timelineStartTime: z.number().describe("Exact time on the timeline to place the overlay (seconds)."),
+  sourceStartTime: z.number().optional().describe("Start time in the source clip (seconds)."),
+  sourceDuration: z.number().optional().describe("Duration to use from the source clip (seconds)."),
+  trackId: z.number().min(1).describe("Must be a higher track index (>= 1).")
+});
+const TrimOperation = BaseOperation.extend({
+  type: z.literal("TRIM"),
+  timelineStartTime: z.number().describe("Start time of the clip on timeline to trim."),
+  newDuration: z.number().describe("New duration for the clip.")
+});
+const EffectOperation = BaseOperation.extend({
+  type: z.literal("EFFECT"),
+  effectType: z.enum(["GLITCH", "ZOOM", "FILTER", "COLOR_GRADE"]),
+  parameters: z.object({
+    intensity: z.number().optional(),
+    scale: z.number().optional()
+  }).optional().describe("Parameters for the effect."),
+  timelineStartTime: z.number().describe("Start time on timeline to apply effect."),
+  duration: z.number().describe("Duration of the effect.")
+});
+const EditDecisionListSchema = z.object({
+  title: z.string().describe("Suggested title for this edit sequence."),
+  reasoning: z.string().describe(`The "Director's Commentary". Why these shots? Why this rhythm?`),
+  operations: z.array(
+    z.union([AppendOperation, InsertOperation, OverlayOperation, TrimOperation, EffectOperation])
+  ).describe("Ordered list of atomic edit operations to build the timeline.")
+});
+
+const prompt = `
+You are the **Skeet Orchestrator**, the master interface for the Skeet creative suite.
+Your goal is to understand the user's intent and coordinate the specialized agents to fulfill their vision.
+
+**Your Team:**
+1. **Scout Agent**: Ideal for finding stock footage, external inspiration, or searching global databases. Use this when the user needs to find *new* content outside their project.
+2. **Media Analyzer**: Use this when the user asks questions about specific clips in their library, needs technical details, or wants to find "transient" moments in audio/video.
+3. **Director Agent**: The editor. Use this when the user wants to *modify* the timeline, create specific sequences, apply effects, or build a story.
+
+**Protocol:**
+1.  **Analyze Request**: What is the user trying to do? (Find, Analyze, or Create?)
+2.  **Delegate**: Call the appropriate tool (agent) to handle the task.
+3.  **Synthesize**: Return the result clearly to the user.
+
+**Constraints:**
+- If the user asks to "make", "create", "edit", or "cut", you MUST use the **Director Agent**.
+- If the user asks to "find", "search", or "look for", consider the **Scout Agent**.
+- If the user asks "what is this clip?", "how long is it?", or about specific visual/audio qualities, use the **Media Analyzer**.
+
+You are the first point of contact. Be helpful, concise, and decisive.
+`;
+
+const director = createTool({
+  id: "director",
+  description: "Calls the Director/Editor agent to modify the timeline, create sequences, or apply effects.",
+  inputSchema: z.object({
+    projectId: z.string(),
+    request: z.string().describe("The user's editing instructions.")
+  }),
+  execute: async ({ projectId, request }) => {
+    console.log("[Skeet] Calling Director Agent...");
+    const result = await editorAgent.generate(
+      `Project ID: ${projectId}
+User Request: ${request}`,
+      {
+        structuredOutput: {
+          schema: EditDecisionListSchema
+        }
+      }
+    );
+    return result.object;
+  }
+});
+const scoutTool = createTool({
+  id: "scout",
+  description: "Calls the Scout agent to find footage or inspiration.",
+  inputSchema: z.object({
+    query: z.string().describe("The search query or scouting request.")
+  }),
+  execute: async ({ query }) => {
+    console.log("[Skeet] Calling Scout Agent...");
+    const result = await scout.generate(query);
+    return result.text;
+  }
+});
+const analyzer = createTool({
+  id: "mediaAnalyzer",
+  description: "Calls the Media Analyzer to answer questions about specific clips or technical details.",
+  inputSchema: z.object({
+    question: z.string().describe("The question about the media.")
+  }),
+  execute: async ({ question }) => {
+    console.log("[Skeet] Calling Media Analyzer...");
+    const result = await mediaAnalyzer.generate(question);
+    return result.text;
+  }
+});
+const skeetAgent = new Agent({
+  id: "skeet-agent",
+  name: "Skeet Orchestrator",
+  instructions: {
+    role: "system",
     content: prompt,
     providerOptions: {
       google: {}
     }
   },
-  model: "google/gemini-3-pro-preview",
-  tools: {}
+  model: "google/gemini-3-flash-preview",
+  memory,
+  tools: {
+    director,
+    scout: scoutTool,
+    mediaAnalyzer: analyzer
+  }
 });
+
+const editingWorkflow = createWorkflow({
+  id: "editing-workflow",
+  inputSchema: z.object({
+    projectId: z.string(),
+    prompt: z.string()
+  }),
+  outputSchema: EditDecisionListSchema
+}).then(
+  createStep({
+    id: "director-step",
+    inputSchema: z.object({
+      projectId: z.string(),
+      prompt: z.string()
+    }),
+    outputSchema: EditDecisionListSchema,
+    execute: async ({ inputData }) => {
+      console.log("--- Director Step Start ---");
+      console.log("Input:", inputData);
+      const result = await editorAgent.generate(
+        `Project ID: ${inputData.projectId}
+User Request: ${inputData.prompt}`,
+        {
+          structuredOutput: {
+            schema: EditDecisionListSchema
+          }
+        }
+      );
+      console.log("--- Director Step Result ---");
+      console.log(JSON.stringify(result.object, null, 2));
+      if (!result.object) {
+        throw new Error("Failed to generate edit decision list");
+      }
+      return result.object;
+    }
+  })
+).commit();
 
 console.log("Current working directory:", process.cwd());
 dotenv.config({
-  path: path.join(process.cwd(), ".env")
+  path: require$$3.join(process.cwd(), ".env")
 });
 console.log("GOOGLE_GENERATIVE_AI_API_KEY present:", !!process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 const mastra = new Mastra({
   agents: {
-    scout
+    scout,
+    mediaAnalyzer,
+    editorAgent,
+    skeetAgent
+  },
+  workflows: {
+    editingWorkflow
   }
 });
 
@@ -2411,10 +2731,6 @@ SuperJSON.registerSymbol = SuperJSON.defaultInstance.registerSymbol.bind(SuperJS
 SuperJSON.registerCustom = SuperJSON.defaultInstance.registerCustom.bind(SuperJSON.defaultInstance);
 SuperJSON.allowErrorProps = SuperJSON.defaultInstance.allowErrorProps.bind(SuperJSON.defaultInstance);
 var stringify = SuperJSON.stringify;
-
-function commonjsRequire(path) {
-	throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
-}
 
 var __create$4 = Object.create;
 var __defProp$4 = Object.defineProperty;
@@ -51890,9 +52206,9 @@ if (mastra.getStorage()) {
 }
 
 var distEDO7GEGI = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    createOpenAI: createOpenAI,
-    openai: openai
+  __proto__: null,
+  createOpenAI: createOpenAI,
+  openai: openai
 });
 
 export { InvalidResponseDataError as I, NoSuchModelError as N, TooManyEmbeddingValuesForCallError as T, UnsupportedFunctionalityError as U, __commonJS as _, __require2 as a, __commonJS$1 as b, require_token_error$1 as c, __require2$1 as d, combineHeaders$1 as e, resolve$1 as f, postJsonToApi$1 as g, createJsonResponseHandler$1 as h, createEventSourceResponseHandler$1 as i, convertUint8ArrayToBase64 as j, createJsonErrorResponseHandler$1 as k, loadApiKey as l, generateId as m, isParsableJson as n, convertBase64ToUint8Array as o, parseProviderOptions as p, postFormDataToApi as q, require_token_error as r, __commonJS$2 as s, require_token_error$2 as t, __require22 as u, withoutTrailingSlash$1 as w };

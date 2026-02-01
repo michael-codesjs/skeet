@@ -6,7 +6,6 @@ export function BackgroundAssets() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 h-full">
       {/* Scattered 3D Assets - Absolute positioning so they scroll with site */}
-
       {/* Distributed 3D Assets with depth effects */}
 
       {/* 1. Cinema Camera - Top Left */}
@@ -54,7 +53,7 @@ export function BackgroundAssets() {
         <img
           src="/assets/3d/camera.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen hue-rotate-180"
+          className="w-full h-full object-contain mix-blend-screen"
         />
       </motion.div>
 
@@ -107,7 +106,39 @@ export function BackgroundAssets() {
         />
       </motion.div>
 
-      {/* 3. Musical Note - Floating Left */}
+      {/* 7. Extra Clapboard - Mid Left */}
+      <motion.div
+        animate={{
+          rotate: [-5, 5, -5],
+        }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute top-[31%] left-[14%] w-64 h-64 opacity-20"
+      >
+        <img
+          src="/assets/3d/scout.png"
+          alt=""
+          className="w-full h-full object-contain mix-blend-screen"
+        />
+      </motion.div>
+
+      {/* 8. Clapboard - Floating Left */}
+      <motion.div
+        animate={{
+          y: [0, -20, 0],
+          x: [0, -15, 0],
+          rotate: [0, 12, 0],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute top-[36%] right-[10%] w-62 h-62 opacity-25"
+      >
+        <img
+          src="/assets/3d/clapboard.png"
+          alt=""
+          className="w-full h-full object-contain mix-blend-screen"
+        />
+      </motion.div>
+
+      {/* 9. Director - Floating Left */}
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -115,73 +146,44 @@ export function BackgroundAssets() {
           rotate: [10, -10, 10],
         }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[35%] left-[10%] w-40 h-40 opacity-25"
+        className="absolute top-[40%] left-[10%] w-62 h-62 opacity-25"
       >
         <img
-          src="/assets/3d/note.png"
+          src="/assets/3d/director.png"
           alt=""
           className="w-full h-full object-contain mix-blend-screen"
         />
       </motion.div>
 
-      {/* 4. Scissors - Lower Left */}
+      {/* 10. Assembly - Floating Left */}
       <motion.div
         animate={{
-          y: [0, 30, 0],
-          rotate: [-15, 5, -15],
+          y: [0, -20, 0],
+          x: [0, 15, 0],
+          rotate: [10, 20, 10],
         }}
-        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[58%] left-[5%] w-56 h-56 opacity-30 blur-xs"
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute top-[46%] right-[10%] w-62 h-62 opacity-25"
       >
         <img
-          src="/assets/3d/scissors.png"
-          alt=""
-          className="w-full h-full object-contain mix-blend-screen invert hue-rotate-180"
-        />
-      </motion.div>
-
-      {/* 9. Extra Clapboard - Mid Left */}
-      <motion.div
-        animate={{
-          rotate: [-5, 5, -5],
-        }}
-        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[28%] left-[14%] w-58 h-58 opacity-20"
-      >
-        <img
-          src="/assets/3d/clapboard.png"
+          src="/assets/3d/assembly.png"
           alt=""
           className="w-full h-full object-contain mix-blend-screen"
         />
       </motion.div>
 
-      {/* 5. Clapboard - Bottom Right */}
+      {/* 10. Assembly - Floating Left */}
       <motion.div
         animate={{
-          y: [0, -40, 0],
-          rotate: [10, -10, 10],
+          y: [0, -20, 0],
+          x: [0, 15, 0],
+          rotate: [10, 20, 10],
         }}
-        transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[72%] right-[5%] w-60 h-60 opacity-25"
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute top-[50%] left-[10%] w-62 h-62 opacity-25"
       >
         <img
-          src="/assets/3d/clapboard.png"
-          alt=""
-          className="w-full h-full object-contain mix-blend-screen"
-        />
-      </motion.div>
-
-      {/* 6. Another Reel - Deep Background Right */}
-      <motion.div
-        animate={{
-          y: [0, 50, 0],
-          rotate: [0, 20, 0],
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[45%] right-[15%] w-48 h-48 opacity-15 blur-md grayscale"
-      >
-        <img
-          src="/assets/3d/reel.png"
+          src="/assets/3d/assembly_alt.png"
           alt=""
           className="w-full h-full object-contain mix-blend-screen"
         />

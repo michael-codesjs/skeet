@@ -7,24 +7,34 @@ export const GET_PROJECTS = gql`
       title
       createdAt
       status
-      clips {
+      media {
         thumbnail
       }
     }
   }
 `;
 
-export const GET_PROJECT = gql`
-  query GetProject($id: String!) {
+// Core project data for initial load (Timeline, Settings, etc.)
+export const GET_PROJECT_DETAILS = gql`
+  query GetProjectDetails($id: String!) {
     project(id: $id) {
       id
       title
-      prompt
+      description
       createdAt
       status
       finalVideoUrl
-      editJson
-      clips {
+      otio
+    }
+  }
+`;
+
+// Media-specific query for the sidebar (Search/Filter support)
+export const GET_PROJECT_MEDIA = gql`
+  query GetProjectMedia($projectId: String!, $search: String, $type: String) {
+    project(id: $projectId) {
+      id
+      media(search: $search, type: $type) {
         id
         fileName
         status
@@ -35,6 +45,8 @@ export const GET_PROJECT = gql`
         shotBreakdown
         duration
         videoUrl
+        proxyUrl
+        mimeType
       }
     }
   }

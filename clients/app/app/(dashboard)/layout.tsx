@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className={`flex h-screen bg-black text-white overflow-hidden`}>
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <main className={`flex-1 overflow-y-auto no-scrollbar scroll-smooth`}>
+        <main className={`flex-1 overflow-y-auto no-scrollbar scroll-smooth p-6`}>
           <div className="relative z-10 h-full">{children}</div>
         </main>
         {/* <Footer /> */}

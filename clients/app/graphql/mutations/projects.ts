@@ -1,21 +1,21 @@
 import { gql } from '@apollo/client';
 
 export const CREATE_PROJECT = gql`
-  mutation CreateProject($title: String, $prompt: String!) {
-    createProject(title: $title, prompt: $prompt) {
+  mutation CreateProject($title: String, $description: String!) {
+    createProject(title: $title, description: $description) {
       id
       title
-      prompt
+      description
     }
   }
 `;
 
 export const UPDATE_PROJECT = gql`
-  mutation UpdateProject($id: String!, $title: String, $prompt: String) {
-    updateProject(id: $id, title: $title, prompt: $prompt) {
+  mutation UpdateProject($id: String!, $title: String, $description: String) {
+    updateProject(id: $id, title: $title, description: $description) {
       id
       title
-      prompt
+      description
     }
   }
 `;
@@ -83,7 +83,7 @@ export const GENERATE_PROJECT_DRAFT = gql`
     generateProjectDraft(id: $id, vibe: $vibe, pacing: $pacing) {
       id
       status
-      editJson
+      otio
     }
   }
 `;
@@ -92,7 +92,7 @@ export const UPDATE_PROJECT_DRAFT = gql`
   mutation UpdateProjectDraft($id: String!, $editJson: String!) {
     updateProjectDraft(id: $id, editJson: $editJson) {
       id
-      editJson
+      otio
     }
   }
 `;
@@ -101,7 +101,7 @@ export const AI_EDIT_PROJECT_DRAFT = gql`
   mutation AiEditProjectDraft($id: String!, $instruction: String!) {
     aiEditProjectDraft(id: $id, instruction: $instruction) {
       id
-      editJson
+      otio
     }
   }
 `;

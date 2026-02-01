@@ -35,6 +35,11 @@ export const useProjectUpdates = (
       onAssetUpdated(data);
     });
 
+    channel.bind('project-updated', (data: any) => {
+      console.log('[Pusher] Received project-updated:', data);
+      onAssetUpdated(data);
+    });
+
     return () => {
       if (pusherRef.current) {
         pusherRef.current.unsubscribe(channelName);

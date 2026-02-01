@@ -13,8 +13,8 @@ export default function LibraryPage() {
         </div>
 
         <button className="flex items-center gap-2 bg-white text-black px-4 py-2.5 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors">
-          <DocumentUpload size={20} color="currentColor" />
           Upload Media
+          <DocumentUpload size={20} color="currentColor" />
         </button>
       </div>
 

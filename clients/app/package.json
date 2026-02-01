@@ -10,16 +10,22 @@
   },
   "dependencies": {
     "@apollo/client": "^4.1.0",
+    "@hookform/resolvers": "^5.2.2",
+    "axios": "^1.13.3",
     "clsx": "^2.1.1",
     "framer-motion": "^12.27.0",
     "graphql": "^16.12.0",
     "iconsax-react": "^0.0.8",
+    "idb": "^8.0.3",
     "next": "16.1.3",
+    "nextjs-toploader": "^3.9.17",
     "pusher-js": "^8.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.1",
     "rxjs": "^7.3.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@/generated/prisma_client';
-import { resend } from '@/lib/resend';
+import { resend } from '@/lib/email/resend';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { emailOTP } from 'better-auth/plugins';

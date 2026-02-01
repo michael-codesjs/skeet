@@ -5,10 +5,11 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 
-class S3Service {
+export class S3Service {
   private static instance: S3Service;
   private s3: S3Client;
   private bucketName: string;
@@ -86,6 +87,26 @@ class S3Service {
     });
 
     await this.s3.send(command);
+
+    // Return the public URL (or use CloudFront if configured)
+    return `https://${this.bucketName}.s3.${process.env.AWS_REGION || 'eu-central-1'}.amazonaws.com/${key}`;
+  }
+
+  /**
+   * Upload a stream to S3
+   */
+  public async uploadStream(key: string, stream: Readable, contentType: string): Promise<string> {
+    const upload = new Upload({
+      client: this.s3,
+      params: {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: stream,
+        ContentType: contentType,
+      },
+    });
+
+    await upload.done();
 
     // Return the public URL (or use CloudFront if configured)
     return `https://${this.bucketName}.s3.${process.env.AWS_REGION || 'eu-central-1'}.amazonaws.com/${key}`;

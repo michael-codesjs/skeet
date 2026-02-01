@@ -15,6 +15,7 @@ We use **Yarn** for all package management. Please do not use `npm` or `pnpm`.
 - **Component Structure**: Group components in their own directories (e.g., `/components/ui/button.tsx`).
 
 - **Types vs Interfaces**: **ALWAYS** use `type` for defining shapes of objects, props, and state. Do not use `interface` unless you specifically need features like declaration merging (rare) or are implementing a class.
+- **Function Exports**: **ALWAYS** use `export const func = async () => {}` syntax for exporting functions. Do not use `export async function func() {}`.
 
 ## Data Fetching (GraphQL)
 
