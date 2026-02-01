@@ -39,7 +39,7 @@ export async function processUploadedVideo(
   console.log(`[Scout] Starting processing for video: ${videoFileId}`);
 
   // 1. Get the video file record
-  const videoFile = await prisma.videoFile.findUnique({
+  const videoFile = await prisma.media.findUnique({
     where: { id: videoFileId },
   });
 
@@ -74,7 +74,7 @@ export async function processUploadedVideo(
     console.log(`[Scout] Gemini analysis complete`);
 
     // 5. Update database with results
-    await prisma.videoFile.update({
+    await prisma.media.update({
       where: { id: videoFileId },
       data: {
         thumbnailUrl,
@@ -91,7 +91,7 @@ export async function processUploadedVideo(
     console.error(`[Scout] Error processing video ${videoFileId}:`, error);
 
     // Mark as failed
-    await prisma.videoFile.update({
+    await prisma.media.update({
       where: { id: videoFileId },
       data: { status: 'FAILED' },
     });
