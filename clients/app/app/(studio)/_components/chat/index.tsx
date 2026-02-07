@@ -1,19 +1,27 @@
 'use client';
 import { MessageStep, useStudioStore } from '@/stores/studio';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown2, Magicpen } from 'iconsax-react';
+import { ArrowDown2, Danger, Magicpen, TickCircle } from 'iconsax-react';
 import { useEffect, useRef, useState } from 'react';
 import { ChatEmptyState } from './empty-state';
 import { ChatHeader } from './header';
 import { ChatInput } from './input';
-import { CompassIcon, MemoryIcon, ProjectIcon, ScissorIcon } from './tool-icons';
+import {
+  CompassIcon,
+  EditorIcon,
+  MemoryIcon,
+  ProjectIcon,
+  ScissorIcon,
+  TimelineIcon,
+} from './tool-icons';
 
-const ToolStep = ({ step }: { step: MessageStep }) => {
+const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) => {
   const isRunning = step.status === 'running';
   const isDone = step.status === 'done';
   const isError = step.status === 'error';
 
   const getIcon = () => {
+    // Restore green color for completed, red for error, dimmed for working
     const colorClass = isError ? 'text-red-500' : isDone ? 'text-green-500' : 'text-white/40';
 
     if (step.toolName === 'editor') {
@@ -44,6 +52,20 @@ const ToolStep = ({ step }: { step: MessageStep }) => {
         </div>
       );
     }
+    if (step.toolName === 'getCurrentTimeline') {
+      return (
+        <div className={colorClass}>
+          <TimelineIcon active={isRunning} />
+        </div>
+      );
+    }
+    if (step.toolName === 'applyEditOperations') {
+      return (
+        <div className={colorClass}>
+          <EditorIcon active={isRunning} />
+        </div>
+      );
+    }
     return <Magicpen size={14} className={colorClass} variant="Bold" color="currentColor" />;
   };
 
@@ -59,19 +81,37 @@ const ToolStep = ({ step }: { step: MessageStep }) => {
   };
 
   const getStatusText = () => {
-    if (isRunning) return 'Is Working';
+    if (isRunning) return depth > 0 ? 'Executing' : 'Working';
     if (isError) return 'Failed';
-    return 'Completed';
+    return depth > 0 ? 'Success' : 'Ready';
   };
 
   return (
-    <div className="flex items-center gap-2 py-1 mb-3h-4">
-      <div className="w-3 shrink-0 flex items-center justify-center leading-0 text-white/40">
-        {getIcon()}
+    <div
+      className="flex items-center gap-2 py-0.5 mb-1 h-5 relative"
+      style={{ marginLeft: depth * 14 }}
+    >
+      {/* Hierarchy Line */}
+      {depth > 0 && <div className="absolute -left-2.5 top-0 bottom-1/2 w-px bg-white/10" />}
+      {depth > 0 && <div className="absolute -left-2.5 top-1/2 w-2 h-px bg-white/10" />}
+
+      <div className="w-3.5 shrink-0 flex items-center justify-center leading-0">{getIcon()}</div>
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        <span
+          className={`text-[10px] font-medium truncate ${
+            isRunning ? 'text-white/60' : 'text-white/30'
+          }`}
+        >
+          {formatToolName(step.toolName || '')}
+        </span>
+        <span className="text-[8px] tracking-wider text-white/20 font-bold shrink-0">
+          {getStatusText()}
+        </span>
+        {isDone && !isError && (
+          <TickCircle size={10} variant="Bold" className="text-white/10 shrink-0" />
+        )}
+        {isError && <Danger size={10} variant="Bold" className="text-orange-500/80 shrink-0" />}
       </div>
-      <span className="text-[10px] font-medium text-white/40">
-        {formatToolName(step.toolName || '')} {getStatusText()}
-      </span>
     </div>
   );
 };
@@ -154,25 +194,45 @@ const ReasoningBlock = ({
   );
 };
 
-const SmoothTypewriter = ({ content }: { content: string }) => {
-  const stripMarkdown = (text: string) => {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove **bold**
-      .replace(/\*(.+?)\*/g, '$1') // Remove *italic*
-      .replace(/`(.+?)`/g, '$1'); // Remove `code`
-  };
+const MessageContent = ({ content }: { content: string }) => {
+  if (!content) return null;
 
-  return <span className="whitespace-pre-wrap text-[10px]">{stripMarkdown(content)}</span>;
+  // Simple parser for @[filename] mentions
+  const parts = content.split(/(@\[.+?\])/g);
+
+  return (
+    <div className="text-[11px] leading-relaxed whitespace-pre-wrap">
+      {parts.map((part, i) => {
+        if (part.startsWith('@[') && part.endsWith(']')) {
+          const fileName = part.slice(2, -1);
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center bg-white/10 text-white border border-white/20 rounded-md px-1.5 py-0.5 mx-0.5 font-mono font-bold align-middle select-none text-[9px] shadow-[0_0_10px_rgba(255,255,255,0.05)]"
+            >
+              {fileName}
+            </span>
+          );
+        }
+
+        // Strip other basic markdown for now to keep it clean
+        const cleanPart = part
+          .replace(/\*\*(.+?)\*\*/g, '$1')
+          .replace(/\*(.+?)\*/g, '$1')
+          .replace(/`(.+?)`/g, '$1');
+
+        return <span key={i}>{cleanPart}</span>;
+      })}
+    </div>
+  );
 };
 
 const MessageSkeleton = () => (
-  <div className="space-y-6 animate-pulse">
+  <div className="space-y-8 animate-pulse">
     {[1, 2, 3].map((i) => (
-      <div key={i} className={`flex flex-col gap-1 ${i % 2 === 0 ? 'items-end' : 'items-start'}`}>
-        <div className={`w-12 h-2 bg-white/5 rounded ${i % 2 === 0 ? 'mr-1' : 'ml-1'}`} />
-        <div
-          className={`h-12 w-[80%] bg-white/5 rounded-lg ${i % 2 === 0 ? 'bg-neutral-800/40' : ''}`}
-        />
+      <div key={i} className={`flex flex-col gap-3 ${i % 2 === 0 ? 'items-end' : 'items-start'}`}>
+        <div className={`w-8 h-2 bg-white/5 rounded-full ${i % 2 === 0 ? 'mr-1' : 'ml-1'}`} />
+        <div className={`h-16 w-full bg-white/3 rounded-2xl`} />{' '}
       </div>
     ))}
   </div>
@@ -191,35 +251,49 @@ export function DirectorChat() {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-full w-80 shrink-0 border-l border-white/5 bg-black/40">
+    <div className="flex flex-col h-full w-80 shrink-0 bg-[#050505] border-l border-white/5">
       <ChatHeader />
-      <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide py-4 px-4">
+      <div className="flex-1 overflow-y-auto min-h-0 scrollbar-hide py-6 px-5">
         {isMessagesLoading ? (
           <MessageSkeleton />
         ) : messages.length === 0 ? (
           <ChatEmptyState />
         ) : (
-          <div className="space-y-6 text-white pb-4">
+          <div className="space-y-8 pb-4">
             <AnimatePresence initial={false}>
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex flex-col gap-1 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div
-                    className={`max-w-[95%] w-full flex flex-col ${
-                      message.role === 'user'
-                        ? 'bg-neutral-800/80 text-white/90 rounded-lg p-2 self-end'
-                        : 'text-white/60'
-                    }`}
+              {messages.map((message) => {
+                const isAssistant = message.role === 'assistant';
+                const hasInterleavedSteps =
+                  isAssistant && message.steps?.some((s) => s.type === 'text');
+
+                return (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
-                    {message.role === 'assistant' && (
-                      <>
-                        {message.steps && message.steps.length > 0 && (
-                          <div className="mb-4">
-                            {message.steps
+                    {/* Role indicator */}
+                    <div
+                      className={`text-[9px] font-bold uppercase tracking-widest mb-2 opacity-20 ${message.role === 'user' ? 'mr-1' : 'ml-1'}`}
+                    >
+                      {message.role}
+                    </div>
+
+                    <div
+                      className={`max-w-full w-full flex flex-col ${
+                        message.role === 'user'
+                          ? 'bg-white/3 text-white/90 rounded-2xl p-4 self-end border border-white/2 shadow-xl'
+                          : 'text-white/60 pl-1'
+                      }`}
+                    >
+                      {isAssistant && message.steps && message.steps.length > 0 ? (
+                        <div className="flex flex-col">
+                          {(() => {
+                            const AGENT_TOOLS = ['editor', 'scout'];
+                            let activeAgentTool: string | null = null;
+
+                            return message.steps
                               .filter((step) => step.toolName !== 'updateWorkingMemory')
                               .map((step) => {
                                 if (step.type === 'thought') {
@@ -232,29 +306,52 @@ export function DirectorChat() {
                                     />
                                   );
                                 }
-                                return <ToolStep key={step.id} step={step} />;
-                              })}
-                          </div>
-                        )}
-                      </>
-                    )}
+                                if (step.type === 'text') {
+                                  activeAgentTool = null;
+                                  return (
+                                    <div key={step.id} className="mb-4 last:mb-0">
+                                      <MessageContent content={step.content || ''} />
+                                    </div>
+                                  );
+                                }
 
-                    <div className="text-xs leading-relaxed">
-                      {message.role === 'assistant' &&
-                      message.status === 'loading' &&
-                      !message.content ? (
-                        <span className="flex gap-1 h-4 items-center">
-                          <span className="w-1 h-1 bg-white/30 rounded-full animate-bounce" />
-                          <span className="w-1 h-1 bg-white/30 rounded-full animate-bounce delay-75" />
-                          <span className="w-1 h-1 bg-white/30 rounded-full animate-bounce delay-150" />
-                        </span>
+                                const isAgent = AGENT_TOOLS.includes(step.toolName || '');
+                                let depth = 0;
+
+                                if (isAgent) {
+                                  activeAgentTool = step.toolName!;
+                                  depth = 0;
+                                } else if (activeAgentTool) {
+                                  depth = 1;
+                                }
+
+                                return <ToolStep key={step.id} step={step} depth={depth} />;
+                              });
+                          })()}
+
+                          {!hasInterleavedSteps && message.content && (
+                            <div className="mt-2">
+                              <MessageContent content={message.content} />
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <SmoothTypewriter content={message.content} />
+                        <div className="leading-relaxed">
+                          {isAssistant && message.status === 'loading' && !message.content ? (
+                            <span className="flex gap-1.5 h-4 items-center pl-1">
+                              <span className="w-1 h-1 bg-white rounded-full animate-bounce" />
+                              <span className="w-1 h-1 bg-white/60 rounded-full animate-bounce delay-75" />
+                              <span className="w-1 h-1 bg-white/30 rounded-full animate-bounce delay-150" />
+                            </span>
+                          ) : (
+                            <MessageContent content={message.content} />
+                          )}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>

@@ -39,12 +39,12 @@ export class Skeet {
     });
     this.memory = new Memory({
       options: {
-        lastMessages: 20,
+        lastMessages: 10,
         generateTitle: true,
-        workingMemory: {
-          enabled: true,
-          scope: 'resource',
-        },
+        // workingMemory: {
+        //   enabled: true,
+        //   scope: 'resource',
+        // },
       },
       storage,
     });
@@ -68,6 +68,9 @@ export class Skeet {
       },
       memory: this.memory,
       tools: {
+        getCurrentTimeline: tools.getCurrentTimeline,
+        getAvailableEffects: tools.getAvailableEffects,
+        applyEditOperations: tools.applyEditOperations,
         scout: createTool({
           id: 'scout',
           description: 'Calls the Scout to search for clips or retrieve technical details.',

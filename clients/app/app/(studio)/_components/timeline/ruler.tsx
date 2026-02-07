@@ -13,17 +13,16 @@ export function Ruler({ zoom, playheadPos, setPlayheadPos }: RulerProps) {
   const project = useStudioStore((state) => state.project);
 
   const totalDuration = useMemo(() => {
-    if (!project?.otio) return 60; // Default 60 seconds for empty
-    let maxTime = 0;
-    project.otio.tracks.children.forEach((track) => {
-      let trackTime = 0;
+    if (!project?.timeline) return 60; // Default 60 seconds for empty
+    let maxTimeMs = 0;
+    project.timeline.tracks.forEach((track) => {
       track.children.forEach((item) => {
-        trackTime += item.source_range.duration.value / item.source_range.duration.rate;
+        const itemEndMs = item.start + item.duration;
+        if (itemEndMs > maxTimeMs) maxTimeMs = itemEndMs;
       });
-      if (trackTime > maxTime) maxTime = trackTime;
     });
-    return Math.max(60, Math.ceil(maxTime + 10)); // Ensure at least 60s, plus 10s padding
-  }, [project?.otio]);
+    return Math.max(60, Math.ceil(maxTimeMs / 1000 + 10)); // Ensure at least 60s, plus 10s padding
+  }, [project?.timeline]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {

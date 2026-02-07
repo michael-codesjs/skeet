@@ -16,6 +16,7 @@ export const UPDATE_PROJECT = gql`
       id
       title
       description
+      timeline
     }
   }
 `;
@@ -83,7 +84,7 @@ export const GENERATE_PROJECT_DRAFT = gql`
     generateProjectDraft(id: $id, vibe: $vibe, pacing: $pacing) {
       id
       status
-      otio
+      timeline
     }
   }
 `;
@@ -92,7 +93,7 @@ export const UPDATE_PROJECT_DRAFT = gql`
   mutation UpdateProjectDraft($id: String!, $editJson: String!) {
     updateProjectDraft(id: $id, editJson: $editJson) {
       id
-      otio
+      timeline
     }
   }
 `;
@@ -101,7 +102,7 @@ export const AI_EDIT_PROJECT_DRAFT = gql`
   mutation AiEditProjectDraft($id: String!, $instruction: String!) {
     aiEditProjectDraft(id: $id, instruction: $instruction) {
       id
-      otio
+      timeline
     }
   }
 `;
@@ -111,6 +112,15 @@ export const EXPORT_PROJECT_VIDEO = gql`
     exportProjectVideo(id: $id) {
       id
       status
+    }
+  }
+`;
+
+export const SAVE_PROJECT_TIMELINE = gql`
+  mutation SaveProjectTimeline($id: String!, $timeline: TimelineInput!) {
+    saveProjectTimeline(id: $id, timeline: $timeline) {
+      id
+      timeline
     }
   }
 `;

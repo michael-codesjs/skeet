@@ -2,7 +2,7 @@
 import { Popover } from '@/components/ui/popover';
 import { useDisclosure } from '@/hooks/use-disclosure';
 import apiClient from '@/lib/clients/rest-api';
-import { Thread, useStudioStore } from '@/stores/studio';
+import { MessageStep, Thread, useStudioStore } from '@/stores/studio';
 import { Add, ArchiveBook, ArrowDown2, Messages1, Timer1 } from 'iconsax-react';
 import { useEffect } from 'react';
 
@@ -70,26 +70,62 @@ export function ChatHeader() {
       setMessages(
         messages.map((m: any) => {
           let content = '';
-          if (typeof m.content === 'string') {
-            content = m.content;
-          } else if (typeof m.content === 'object' && m.content !== null) {
+          const steps: MessageStep[] = [];
+
+          // Handle structured content (format 2 with parts)
+          if (typeof m.content === 'object' && m.content !== null) {
             if (Array.isArray(m.content.parts)) {
-              content = m.content.parts.map((p: any) => p.text || '').join('');
+              m.content.parts.forEach((part: any, idx: number) => {
+                if (part.type === 'text' && part.text) {
+                  content += part.text;
+                  steps.push({
+                    id: `text-${m.id}-${idx}`,
+                    type: 'text',
+                    content: part.text,
+                    status: 'done',
+                  });
+                } else if (part.type === 'reasoning') {
+                  const thoughtText = part.reasoning || part.details?.[0]?.text || '';
+                  if (thoughtText) {
+                    steps.push({
+                      id: `thought-${m.id}-${idx}`,
+                      type: 'thought',
+                      content: thoughtText,
+                      status: 'done',
+                    });
+                  }
+                } else if (part.type === 'tool-invocation') {
+                  const invocation = part.toolInvocation;
+                  steps.push({
+                    id: invocation.toolCallId || `tool-${m.id}-${idx}`,
+                    type: 'tool',
+                    toolName: invocation.toolName,
+                    status: invocation.state === 'result' ? 'done' : 'running',
+                    result: invocation.result,
+                  });
+                }
+              });
+
+              // If content is still empty but there's a fallback content field
+              if (!content && m.content.content) {
+                content = m.content.content;
+              }
             } else if (m.content.content) {
               content = m.content.content;
             }
+          } else {
+            content = m.content || '';
           }
 
-          // Extract thought and steps from metadata if available
+          // Merge with any metadata steps if they exist and we don't have parts-based steps
           const metadata = m.metadata || {};
+          const finalSteps = steps.length > 0 ? steps : metadata.steps || [];
 
           return {
             id: m.id,
             role: m.role.toLowerCase() as 'user' | 'assistant',
             content: content || '',
-            thought: metadata.thought || '',
-            thoughtDuration: metadata.thoughtDuration,
-            steps: metadata.steps || [],
+            steps: finalSteps,
             timestamp: new Date(m.createdAt),
             status: 'sent',
           };

@@ -22,8 +22,15 @@ export function usePlayer(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
     try {
       const compositor = new VideoCompositor(canvasRef.current);
       compositor.setAssetResolver(async (mediaId) => {
+        // 1. Try local IDB first
         const blob = await getAsset(mediaId);
-        if (blob) return URL.createObjectURL(blob);
+        if (blob) {
+          return {
+            url: URL.createObjectURL(blob),
+            mimeType: blob.type,
+          };
+        }
+
         return null;
       });
       compositorRef.current = compositor;
@@ -40,11 +47,11 @@ export function usePlayer(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
 
   // Sync Timeline Data
   useEffect(() => {
-    if (project?.otio && compositorRef.current) {
-      compositorRef.current.loadTimeline(project.otio);
+    if (project?.timeline && compositorRef.current) {
+      compositorRef.current.loadTimeline(project.timeline);
       // Determine max duration?
     }
-  }, [project?.otio]);
+  }, [project?.timeline]);
 
   // Sync Seek (Manual time change)
   useEffect(() => {
@@ -65,17 +72,17 @@ export function usePlayer(canvasRef: React.RefObject<HTMLCanvasElement | null>) 
         let nextTime = useStudioStore.getState().currentTime + delta;
 
         // Calculate project end time
-        let maxTime = 0;
-        const otio = useStudioStore.getState().project?.otio;
-        if (otio) {
-          otio.tracks.children.forEach((track) => {
-            let trackTime = 0;
+        let maxTimeMs = 0;
+        const timeline = useStudioStore.getState().project?.timeline;
+        if (timeline) {
+          timeline.tracks.forEach((track) => {
             track.children.forEach((item) => {
-              trackTime += item.source_range.duration.value / item.source_range.duration.rate;
+              const itemEndMs = item.start + item.duration;
+              if (itemEndMs > maxTimeMs) maxTimeMs = itemEndMs;
             });
-            if (trackTime > maxTime) maxTime = trackTime;
           });
         }
+        let maxTime = maxTimeMs / 1000;
 
         // If it's a completely empty project, allow up to 30s or just stop
         if (maxTime === 0) maxTime = 30;

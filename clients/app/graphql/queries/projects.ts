@@ -24,7 +24,7 @@ export const GET_PROJECT_DETAILS = gql`
       createdAt
       status
       finalVideoUrl
-      otio
+      timeline
     }
   }
 `;

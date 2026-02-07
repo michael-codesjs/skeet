@@ -36,30 +36,58 @@ export function Popover({
   const onClose = controlledOnClose ?? disclosure.onClose;
 
   const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [contentHeight, setContentHeight] = useState(0);
   const triggerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const updateCoords = () => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
+      const popoverWidth = typeof width === 'number' ? width : 280;
+
       let left = rect.left + (offset.x || 0);
 
       if (align === 'right') {
-        left = rect.right - (typeof width === 'number' ? width : 0) + (offset.x || 0);
+        left = rect.right - popoverWidth + (offset.x || 0);
       } else if (align === 'center') {
-        left =
-          rect.left +
-          rect.width / 2 -
-          (typeof width === 'number' ? width / 2 : 0) +
-          (offset.x || 0);
+        left = rect.left + rect.width / 2 - popoverWidth / 2 + (offset.x || 0);
       }
 
-      setCoords({
-        top: rect.bottom + window.scrollY + 8 + (offset.y || 0),
-        left: left + window.scrollX,
-      });
+      // Viewport collision detection (Horizontal)
+      const padding = 12;
+      if (left + popoverWidth > window.innerWidth - padding) {
+        left = window.innerWidth - popoverWidth - padding;
+      }
+      if (left < padding) {
+        left = padding;
+      }
+
+      // Vertical collision detection
+      let top = rect.bottom + window.scrollY + 8 + (offset.y || 0);
+
+      // Use measured height if available, otherwise a sensible default
+      const height = contentHeight || 200;
+      const spaceBelow = window.innerHeight - rect.bottom;
+
+      if (spaceBelow < height + 20 && rect.top > height + 20) {
+        // Not enough space below, flip above the trigger
+        top = rect.top + window.scrollY - height - 8 + (offset.y || 0);
+      }
+
+      setCoords({ top, left: left + window.scrollX });
     }
   };
+
+  // Re-measure height whenever the popover opens or content changes
+  useEffect(() => {
+    if (isOpen && popoverRef.current) {
+      const height = popoverRef.current.offsetHeight;
+      if (height !== contentHeight) {
+        setContentHeight(height);
+        updateCoords();
+      }
+    }
+  }, [isOpen, children]); // Re-calculate if children change
 
   useEffect(() => {
     if (isOpen) {

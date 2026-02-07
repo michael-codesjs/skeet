@@ -1,34 +1,54 @@
 'use client';
 
+import { SAVE_PROJECT_TIMELINE } from '@/graphql/mutations/projects';
 import { cn } from '@/lib/utils';
 import { useStudioStore } from '@/stores/studio';
+import { useMutation } from '@apollo/client/react';
 import { Cpu, Flash, InfoCircle, Record } from 'iconsax-react';
 
 export function StudioFooter() {
   const project = useStudioStore((state) => state.project);
   const isPlaying = useStudioStore((state) => state.isPlaying);
+  const isSaving = useStudioStore((state) => state.isSaving);
+  const isDirty = useStudioStore((state) => state.isDirty);
+  const saveProjectTimeline = useStudioStore((state) => state.saveProjectTimeline);
+
+  const [saveTimelineMutation] = useMutation(SAVE_PROJECT_TIMELINE);
+
+  const handleManualSave = async () => {
+    await saveProjectTimeline(async (id, timeline) => {
+      return saveTimelineMutation({
+        variables: { id, timeline },
+      });
+    });
+  };
 
   return (
     <footer className="h-8 shrink-0 bg-black border-t border-white/5 px-4 flex items-center justify-between text-[10px] text-neutral-500 select-none">
       {/* Left: Project Context */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5 min-w-[120px]">
-          <div
-            className={cn(
-              'w-1.5 h-1.5 rounded-full animate-pulse',
-              project?.status === 'READY' ? 'bg-green-500' : 'bg-yellow-500',
+        <div className="flex items-center gap-3 border-l border-white/5 pl-4">
+          <div className="flex items-center gap-2 min-w-[100px] text-[10px]">
+            {isSaving ? (
+              <span className="text-neutral-400 italic">Saving...</span>
+            ) : isDirty ? (
+              <button
+                onClick={handleManualSave}
+                className="text-emerald-500 font-medium hover:text-emerald-400 transition-colors flex items-center gap-1.5"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Save Changes
+              </button>
+            ) : (
+              <>
+                <div className="w-1.5 h-1.5 rounded-full bg-neutral-600" />
+                <span>All changes saved</span>
+              </>
             )}
-          />
-          <span className="font-medium text-neutral-400 truncate max-w-[100px]">
-            {project?.title || 'No Project'}
-          </span>
-          <span className="text-neutral-600">/</span>
-          <span className="uppercase tracking-wider font-bold text-[9px]">
-            {project?.status || 'IDLE'}
-          </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 border-l border-white/5 pl-4">
+        <div className="flex items-center gap-3 border-l border-white/5">
           <div className="flex items-center gap-1 min-w-[120px]">
             <Record
               size={12}
@@ -65,7 +85,7 @@ export function StudioFooter() {
       {/* Right: Engine Status */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-blue-400/70">
+          <div className="flex items-center gap-1 text-neutral-400/70">
             <Flash size={12} variant="Bulk" />
             <span className="font-medium">AI Director Online</span>
           </div>

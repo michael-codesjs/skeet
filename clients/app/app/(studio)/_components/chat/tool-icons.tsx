@@ -13,7 +13,10 @@ export const ScissorIcon = ({ active }: { active?: boolean }) => (
     <g
       style={{
         transformOrigin: '12px 12px',
-        animation: active ? 'scissor-top 0.8s ease-in-out infinite' : 'none',
+        animationName: active ? 'scissor-top' : 'none',
+        animationDuration: '0.8s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
       }}
     >
       <path d="M6 18L18 6" />
@@ -22,7 +25,10 @@ export const ScissorIcon = ({ active }: { active?: boolean }) => (
     <g
       style={{
         transformOrigin: '12px 12px',
-        animation: active ? 'scissor-bottom 0.8s ease-in-out infinite' : 'none',
+        animationName: active ? 'scissor-bottom' : 'none',
+        animationDuration: '0.8s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
       }}
     >
       <path d="M6 6L18 18" />
@@ -67,7 +73,10 @@ export const CompassIcon = ({ active }: { active?: boolean }) => (
     <g
       style={{
         transformOrigin: '12px 12px',
-        animation: active ? 'compass-spin 3s cubic-bezier(0.4, 0, 0.2, 1) infinite' : 'none',
+        animationName: active ? 'compass-spin' : 'none',
+        animationDuration: '3s',
+        animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        animationIterationCount: 'infinite',
       }}
     >
       <path d="M12 8L12 16M8 12L16 12" strokeWidth="1.5" />
@@ -118,7 +127,10 @@ export const MemoryIcon = ({ active }: { active?: boolean }) => (
           y2="7"
           opacity="0.6"
           style={{
-            animation: 'fade-line 1.2s ease-in-out infinite',
+            animationName: active ? 'fade-line' : 'none',
+            animationDuration: '1.2s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
             animationDelay: '0s',
           }}
         />
@@ -129,7 +141,10 @@ export const MemoryIcon = ({ active }: { active?: boolean }) => (
           y2="11"
           opacity="0.6"
           style={{
-            animation: 'fade-line 1.2s ease-in-out infinite',
+            animationName: active ? 'fade-line' : 'none',
+            animationDuration: '1.2s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
             animationDelay: '0.3s',
           }}
         />
@@ -140,7 +155,10 @@ export const MemoryIcon = ({ active }: { active?: boolean }) => (
           y2="15"
           opacity="0.6"
           style={{
-            animation: 'fade-line 1.2s ease-in-out infinite',
+            animationName: active ? 'fade-line' : 'none',
+            animationDuration: '1.2s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
             animationDelay: '0.6s',
           }}
         />
@@ -180,7 +198,10 @@ export const ProjectIcon = ({ active }: { active?: boolean }) => (
           cy="13"
           r="0"
           style={{
-            animation: 'pulse-dot 1.5s ease-in-out infinite',
+            animationName: 'pulse-dot',
+            animationDuration: '1.5s',
+            animationTimingFunction: 'ease-in-out',
+            animationIterationCount: 'infinite',
           }}
         />
       </>
@@ -195,6 +216,154 @@ export const ProjectIcon = ({ active }: { active?: boolean }) => (
         50% {
           r: 2;
           opacity: 0.2;
+        }
+      }
+    `}</style>
+  </svg>
+);
+
+export const TimelineIcon = ({ active }: { active?: boolean }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-inherit"
+  >
+    {/* The Playhead */}
+    <line x1="12" y1="4" x2="12" y2="20" strokeWidth="1.5" />
+
+    {/* The Signal Waves */}
+    <path
+      d="M15 9c1.5 1.5 1.5 4.5 0 6"
+      opacity="0.4"
+      style={{
+        animationName: active ? 'signal-pulse' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+      }}
+    />
+    <path
+      d="M9 9c-1.5 1.5-1.5 4.5 0 6"
+      opacity="0.4"
+      style={{
+        animationName: active ? 'signal-pulse' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+      }}
+    />
+    <path
+      d="M18 7c2.5 2.5 2.5 7.5 0 10"
+      opacity="0.2"
+      style={{
+        animationName: active ? 'signal-pulse' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+        animationDelay: '0.3s',
+      }}
+    />
+    <path
+      d="M6 7c-2.5 2.5-2.5 7.5 0 10"
+      opacity="0.2"
+      style={{
+        animationName: active ? 'signal-pulse' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+        animationDelay: '0.3s',
+      }}
+    />
+
+    <style jsx>{`
+      @keyframes signal-pulse {
+        0%,
+        100% {
+          opacity: 0.1;
+          transform: scaleX(0.9);
+        }
+        50% {
+          opacity: 0.8;
+          transform: scaleX(1.1);
+        }
+      }
+    `}</style>
+  </svg>
+);
+
+export const EditorIcon = ({ active }: { active?: boolean }) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="text-inherit"
+  >
+    {/* Incoming and Outgoing segments */}
+    <rect
+      x="3"
+      y="10"
+      width="7"
+      height="4"
+      rx="1"
+      strokeWidth="1.5"
+      style={{
+        animationName: active ? 'splice-left' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+      }}
+    />
+    <rect
+      x="14"
+      y="10"
+      width="7"
+      height="4"
+      rx="1"
+      strokeWidth="1.5"
+      style={{
+        animationName: active ? 'splice-right' : 'none',
+        animationDuration: '1.2s',
+        animationTimingFunction: 'ease-in-out',
+        animationIterationCount: 'infinite',
+      }}
+    />
+
+    {/* The Joiner Spark */}
+    {active && (
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none">
+        <animate attributeName="opacity" values="0;1;0" dur="1.2s" repeatCount="indefinite" />
+        <animate attributeName="r" values="1;3;1" dur="1.2s" repeatCount="indefinite" />
+      </circle>
+    )}
+
+    <style jsx>{`
+      @keyframes splice-left {
+        0%,
+        100% {
+          transform: translateX(0px);
+        }
+        50% {
+          transform: translateX(1.5px);
+        }
+      }
+      @keyframes splice-right {
+        0%,
+        100% {
+          transform: translateX(0px);
+        }
+        50% {
+          transform: translateX(-1.5px);
         }
       }
     `}</style>

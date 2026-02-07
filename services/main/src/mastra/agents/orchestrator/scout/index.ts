@@ -3,7 +3,7 @@ import { createTools } from '../create-tools';
 import { prompt } from './instructions';
 
 export const getScoutAgent = (tools: ReturnType<typeof createTools>) => {
-  const { getProjectManifest, searchSegments } = tools;
+  const { getProjectManifest, searchSegments, getCurrentTimeline, getClipDetails } = tools;
   return new Agent({
     id: 'scout',
     name: 'Scout',
@@ -18,6 +18,8 @@ export const getScoutAgent = (tools: ReturnType<typeof createTools>) => {
     tools: {
       getProjectManifest,
       searchSegments,
+      getCurrentTimeline,
+      getClipDetails,
     },
   });
 };

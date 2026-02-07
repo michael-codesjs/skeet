@@ -1,535 +1,750 @@
-import { OTIOClip, OTIOTimeline } from '@/stores/studio';
+import { TimelineClip, TimelineData, TimelineEffectClip } from '@/stores/studio';
 
-type VideoResource = {
-  element: HTMLVideoElement;
-  loaded: boolean;
-  url: string;
+type AssetResource = {
+  element: HTMLVideoElement | HTMLImageElement | HTMLAudioElement;
+  type: 'video' | 'image' | 'audio';
+  mediaId: string;
+  width: number;
+  height: number;
+  sourceNode?: MediaElementAudioSourceNode;
+  gainNode?: GainNode;
 };
-
-// Vertex shader
-const VERT_SHADER = `
-attribute vec2 position;
-attribute vec2 uv;
-varying vec2 vUv;
-void main() {
-  gl_Position = vec4(position, 0.0, 1.0);
-  vUv = uv;
-}
-`;
-
-// Fragment shader
-const FRAG_SHADER = `
-precision mediump float;
-varying vec2 vUv;
-
-uniform sampler2D uBgTexture; 
-uniform sampler2D uFgTexture; 
-
-// Aspect Correction (x, y scale factors)
-// 1.0 = No scaling. > 1.0 = Zoom out (creates bars).
-uniform vec2 uBgScaleCorrection; 
-uniform vec2 uFgScaleCorrection;
-
-uniform float uFgOpacity; 
-uniform float uFgScale;   
-uniform vec2 uFgPos;      
-
-uniform float uGlitch; 
-uniform float uFilter; 
-
-void main() {
-  // 1. Background (with Aspect Correction)
-  vec2 bgUv = (vUv - 0.5) * uBgScaleCorrection + 0.5;
-  
-  vec4 bgColor = vec4(0.0, 0.0, 0.0, 1.0); // Default Black
-  if (bgUv.x >= 0.0 && bgUv.x <= 1.0 && bgUv.y >= 0.0 && bgUv.y <= 1.0) {
-     bgColor = texture2D(uBgTexture, bgUv);
-  }
-
-  // 2. Foreground (PIP + Aspect Correction)
-  // Apply Aspect Correction *inside* the PIP transformation or alongside it?
-  // We want the PIP content itself to be aspect correct.
-  // Transform: (uv - center) -> Scale (PIP) -> Position -> Aspect -> + center
-  
-  // NOTE: Logic order:
-  // We want to map UV 0..1 to a specific rect on screen.
-  // Aspect correction operates on the texture lookup UVs.
-  
-  // Let's create the UV for the PIP window first (0..1 range inside the PIP box)
-  vec2 rawFgUv = (vUv - 0.5) / uFgScale - uFgPos + 0.5;
-  
-  vec4 fgColor = vec4(0.0);
-  
-  // Now apply aspect correction to *that* 0..1 range
-  // BUT we only do this if we are "inside" the PIP box conceptually.
-  // Actually, we can just chain it.
-  
-  // Center regarding the PIP frame (0.5)
-  vec2 aspectFgUv = (rawFgUv - 0.5) * uFgScaleCorrection + 0.5;
-
-  if (aspectFgUv.x >= 0.0 && aspectFgUv.x <= 1.0 && aspectFgUv.y >= 0.0 && aspectFgUv.y <= 1.0) {
-      fgColor = texture2D(uFgTexture, aspectFgUv);
-      fgColor.a *= uFgOpacity;
-  } 
-
-  // 3. Composite
-  vec3 mixedRgb = fgColor.rgb * fgColor.a + bgColor.rgb * (1.0 - fgColor.a);
-  vec4 finalColor = vec4(mixedRgb, 1.0);
-
-  // 4. Effects
-  // 4. Effects
-  if (false && uGlitch > 0.0) {
-    float offset = 0.02 * uGlitch;
-    float r = 0.0;
-    // Sample offset from BG
-    vec2 offsetUv = bgUv + vec2(offset, 0.0);
-    if (offsetUv.x >= 0.0 && offsetUv.x <= 1.0 && offsetUv.y >=0.0 && offsetUv.y <= 1.0) {
-        r = texture2D(uBgTexture, offsetUv).r;
-    }
-    finalColor.r = mix(finalColor.r, r, 0.5);
-  }
-
-  if (false && uFilter > 0.5) {
-    float gray = dot(finalColor.rgb, vec3(0.299, 0.587, 0.114));
-    finalColor = vec4(vec3(gray), 1.0);
-  }
-
-  gl_FragColor = finalColor;
-}
-`;
 
 export class VideoCompositor {
   private canvas: HTMLCanvasElement;
-  private gl: WebGLRenderingContext;
-  private program: WebGLProgram | null = null;
-  private videos: Map<string, VideoResource> = new Map();
-  private resolveAsset: ((mediaId: string) => Promise<string | null>) | null = null;
-  private timeline: OTIOTimeline | null = null;
+  private gl: WebGL2RenderingContext;
 
-  private bgTexture: WebGLTexture | null = null;
-  private fgTexture: WebGLTexture | null = null;
-  private noiseTexture: WebGLTexture | null = null;
+  // Programs
+  private baseProgram: WebGLProgram | null = null;
+  private effectPrograms: Map<string, WebGLProgram> = new Map();
 
-  private attribs: { position: number; uv: number } | null = null;
-  private uniforms: {
-    uBgTexture: WebGLUniformLocation | null;
-    uFgTexture: WebGLUniformLocation | null;
-    uNoiseTexture: WebGLUniformLocation | null;
+  // Buffers
+  private buffer: WebGLBuffer | null = null;
 
-    uBgScaleCorrection: WebGLUniformLocation | null;
-    uFgScaleCorrection: WebGLUniformLocation | null;
+  // Audio
+  private audioContext: AudioContext;
 
-    uFgOpacity: WebGLUniformLocation | null;
-    uFgScale: WebGLUniformLocation | null;
-    uFgPos: WebGLUniformLocation | null;
-    uGlitch: WebGLUniformLocation | null;
-    uFilter: WebGLUniformLocation | null;
-    uTime: WebGLUniformLocation | null;
-  } | null = null;
+  // State
+  private timeline: TimelineData | null = null;
+  private assetCache: Map<string, AssetResource> = new Map();
+  private resolveAsset:
+    | ((mediaId: string) => Promise<{ url: string; mimeType: string } | null>)
+    | null = null;
+  private onNeedsRender: (() => void) | null = null;
+
+  // Pass 1: Scene (Video Layers)
+  private texture: WebGLTexture | null = null; // Input Media Texture
+
+  // Pass 2: Effect (Post Processing)
+  private sceneFrameBuffer: WebGLFramebuffer | null = null;
+  private sceneTexture: WebGLTexture | null = null; // Result of Pass 1
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true });
-    if (!gl) throw new Error('WebGL not supported');
+    const gl = canvas.getContext('webgl2', { alpha: false, preserveDrawingBuffer: true });
+    if (!gl) {
+      throw new Error('WebGL2 not supported');
+    }
     this.gl = gl;
 
-    this.initShaders();
-    this.initBuffers();
-    this.initTextures();
-    this.initNoiseAsset();
+    // Landscape target (Standard 16:9)
+    this.canvas.width = 1920;
+    this.canvas.height = 1080;
+
+    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    this.initGL();
+    this.initEffectPrograms();
   }
 
-  private initShaders() {
-    const gl = this.gl;
-    const compile = (type: number, src: string) => {
-      const s = gl.createShader(type)!;
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        console.error(gl.getShaderInfoLog(s));
-        return null;
+  private createShader(type: number, source: string) {
+    const shader = this.gl.createShader(type)!;
+    this.gl.shaderSource(shader, source);
+    this.gl.compileShader(shader);
+    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+      console.error(this.gl.getShaderInfoLog(shader));
+      this.gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  private createProgram(vsSource: string, fsSource: string) {
+    const vs = this.createShader(this.gl.VERTEX_SHADER, vsSource);
+    const fs = this.createShader(this.gl.FRAGMENT_SHADER, fsSource);
+    if (!vs || !fs) return null;
+
+    const program = this.gl.createProgram()!;
+    this.gl.attachShader(program, vs);
+    this.gl.attachShader(program, fs);
+    this.gl.linkProgram(program);
+
+    if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
+      console.error(this.gl.getProgramInfoLog(program));
+      return null;
+    }
+    return program;
+  }
+
+  private initGL() {
+    // 1. Base Program (Video/Image -> Screen/FBO)
+    const vsSource = `#version 300 es
+      in vec2 a_position;
+      in vec2 a_texCoord;
+      out vec2 v_texCoord;
+      uniform vec2 u_resolution;
+      uniform vec4 u_rect; // x, y, width, height
+      uniform float u_vFlip; // 0.0 = normal, 1.0 = flipped
+
+      void main() {
+        vec2 pos = a_position * u_rect.zw + u_rect.xy;
+        vec2 zeroToOne = pos / u_resolution;
+        vec2 zeroToTwo = zeroToOne * 2.0;
+        vec2 clipSpace = zeroToTwo - 1.0;
+        gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+        v_texCoord = vec2(a_texCoord.x, abs(u_vFlip - a_texCoord.y));
       }
-      return s;
-    };
+    `;
 
-    const vert = compile(gl.VERTEX_SHADER, VERT_SHADER);
-    const frag = compile(gl.FRAGMENT_SHADER, FRAG_SHADER);
-    if (!vert || !frag) return;
+    const fsSource = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform float u_opacity;
 
-    const prog = gl.createProgram()!;
-    gl.attachShader(prog, vert);
-    gl.attachShader(prog, frag);
-    gl.linkProgram(prog);
+      void main() {
+        vec4 color = texture(u_image, v_texCoord);
+        outColor = vec4(color.rgb, color.a * u_opacity);
+      }
+    `;
 
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      console.error(gl.getProgramInfoLog(prog));
-      return;
-    }
+    this.baseProgram = this.createProgram(vsSource, fsSource);
 
-    this.program = prog;
-    gl.useProgram(prog);
+    // 2. Fullscreen Quad Buffer
+    const buffer = this.gl.createBuffer();
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
+    const positions = new Float32Array([
+      0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1,
+    ]);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
+    this.buffer = buffer;
 
-    this.attribs = {
-      position: gl.getAttribLocation(prog, 'position'),
-      uv: gl.getAttribLocation(prog, 'uv'),
-    };
+    // 3. Input Media Texture (reused for every video frame)
+    this.texture = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
-    this.uniforms = {
-      uBgTexture: gl.getUniformLocation(prog, 'uBgTexture'),
-      uFgTexture: gl.getUniformLocation(prog, 'uFgTexture'),
-      uNoiseTexture: gl.getUniformLocation(prog, 'uNoiseTexture'),
+    // 4. Scene FBO (Intermediate Canvas)
+    // We render the video layers here first, then apply effects on top of ANY video content.
+    this.sceneTexture = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.sceneTexture);
+    this.gl.texImage2D(
+      this.gl.TEXTURE_2D,
+      0,
+      this.gl.RGBA,
+      this.canvas.width,
+      this.canvas.height,
+      0,
+      this.gl.RGBA,
+      this.gl.UNSIGNED_BYTE,
+      null,
+    );
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
-      uBgScaleCorrection: gl.getUniformLocation(prog, 'uBgScaleCorrection'),
-      uFgScaleCorrection: gl.getUniformLocation(prog, 'uFgScaleCorrection'),
-
-      uFgOpacity: gl.getUniformLocation(prog, 'uFgOpacity'),
-      uFgScale: gl.getUniformLocation(prog, 'uFgScale'),
-      uFgPos: gl.getUniformLocation(prog, 'uFgPos'),
-      uGlitch: gl.getUniformLocation(prog, 'uGlitch'),
-      uFilter: gl.getUniformLocation(prog, 'uFilter'),
-      uTime: gl.getUniformLocation(prog, 'uTime'),
-    };
-
-    gl.uniform1i(this.uniforms.uBgTexture, 0);
-    gl.uniform1i(this.uniforms.uFgTexture, 1);
-    gl.uniform1i(this.uniforms.uNoiseTexture, 2);
+    this.sceneFrameBuffer = this.gl.createFramebuffer();
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.sceneFrameBuffer);
+    this.gl.framebufferTexture2D(
+      this.gl.FRAMEBUFFER,
+      this.gl.COLOR_ATTACHMENT0,
+      this.gl.TEXTURE_2D,
+      this.sceneTexture,
+      0,
+    );
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
   }
 
-  private initBuffers() {
-    const gl = this.gl;
-    const pos = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
-    const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+  private initEffectPrograms() {
+    // Common Vertex Shader for Effects (Just passes full screen quad)
+    // The baseProgram VS uses rect projection, but effects usually just want full-screen.
+    // However, to keep it simple, we can re-use the base VS and just pass full-screen rect.
+    const vsSource = `#version 300 es
+      in vec2 a_position;
+      in vec2 a_texCoord;
+      out vec2 v_texCoord;
+      uniform vec2 u_resolution;
+      uniform vec4 u_rect; 
+      uniform float u_vFlip; 
+      void main() {
+        vec2 pos = a_position * u_rect.zw + u_rect.xy;
+        vec2 zeroToOne = pos / u_resolution;
+        vec2 zeroToTwo = zeroToOne * 2.0;
+        vec2 clipSpace = zeroToTwo - 1.0;
+        gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
+        v_texCoord = vec2(a_texCoord.x, abs(u_vFlip - a_texCoord.y));
+      }
+    `;
 
-    const pb = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, pb);
-    gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
-    if (this.attribs) {
-      gl.enableVertexAttribArray(this.attribs.position);
-      gl.vertexAttribPointer(this.attribs.position, 2, gl.FLOAT, false, 0, 0);
-    }
+    // 1. Grayscale
+    const grayFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform float u_intensity;
+      void main() {
+        vec4 original = texture(u_image, v_texCoord);
+        float gray = dot(original.rgb, vec3(0.299, 0.587, 0.114));
+        outColor = mix(original, vec4(vec3(gray), original.a), u_intensity);
+      }
+    `;
+    const grayProg = this.createProgram(vsSource, grayFs);
+    if (grayProg) this.effectPrograms.set('Grayscale', grayProg);
 
-    const ub = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, ub);
-    gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
-    if (this.attribs) {
-      gl.enableVertexAttribArray(this.attribs.uv);
-      gl.vertexAttribPointer(this.attribs.uv, 2, gl.FLOAT, false, 0, 0);
-    }
+    // 2. Sepia
+    const sepiaFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform float u_intensity;
+      void main() {
+        vec4 original = texture(u_image, v_texCoord);
+        float r = dot(original.rgb, vec3(0.393, 0.769, 0.189));
+        float g = dot(original.rgb, vec3(0.349, 0.686, 0.168));
+        float b = dot(original.rgb, vec3(0.272, 0.534, 0.131));
+        outColor = mix(original, vec4(r, g, b, original.a), u_intensity);
+      }
+    `;
+    const sepiaProg = this.createProgram(vsSource, sepiaFs);
+    if (sepiaProg) this.effectPrograms.set('Sepia', sepiaProg);
+
+    // 3. Blur (Optimized 9-tap)
+    const blurFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution; 
+      uniform float u_intensity;
+      void main() {
+          vec2 r = vec2(1.5) / u_resolution;
+          vec4 original = texture(u_image, v_texCoord);
+          vec4 blurred = original * 0.227027;
+          
+          blurred += texture(u_image, v_texCoord + vec2(r.x, 0.0)) * 0.1945946;
+          blurred += texture(u_image, v_texCoord - vec2(r.x, 0.0)) * 0.1945946;
+          blurred += texture(u_image, v_texCoord + vec2(0.0, r.y)) * 0.1945946;
+          blurred += texture(u_image, v_texCoord - vec2(0.0, r.y)) * 0.1945946;
+
+          outColor = mix(original, vec4(blurred.rgb, 1.0), u_intensity);
+      }
+    `;
+    const blurProg = this.createProgram(vsSource, blurFs);
+    if (blurProg) this.effectPrograms.set('Blur', blurProg);
+
+    // 4. Glitch
+    const glitchFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform float u_intensity;
+      void main() {
+          float strength = 0.02 * u_intensity;
+          vec4 original = texture(u_image, v_texCoord);
+          float r = texture(u_image, v_texCoord + vec2(strength, 0)).r;
+          float g = original.g;
+          float b = texture(u_image, v_texCoord - vec2(strength, 0)).b;
+          outColor = vec4(r, g, b, original.a);
+      }
+    `;
+    const glitchProg = this.createProgram(vsSource, glitchFs);
+    if (glitchProg) this.effectPrograms.set('Glitch', glitchProg);
+
+    // 5. Pixelate
+    const pixelateFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      uniform float u_intensity;
+      void main() {
+          vec4 original = texture(u_image, v_texCoord);
+          float pixels = mix(1024.0, 64.0, u_intensity); 
+          vec2 uv = floor(v_texCoord * pixels) / pixels;
+          outColor = texture(u_image, uv);
+      }
+    `;
+    // 6. Zoom
+    const zoomFs = `#version 300 es
+      precision highp float;
+      in vec2 v_texCoord;
+      out vec4 outColor;
+      uniform sampler2D u_image;
+      uniform float u_level;
+      uniform float u_intensity;
+      void main() {
+          float scale = 1.0 + (u_level - 1.0) * u_intensity;
+          vec2 uv = (v_texCoord - 0.5) / scale + 0.5;
+          outColor = texture(u_image, uv);
+      }
+    `;
+    const zoomProg = this.createProgram(vsSource, zoomFs);
+    if (zoomProg) this.effectPrograms.set('Zoom', zoomProg);
   }
 
-  private initTextures() {
-    const gl = this.gl;
-    const setup = (unit: number) => {
-      const t = gl.createTexture();
-      gl.activeTexture(unit);
-      gl.bindTexture(gl.TEXTURE_2D, t);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      return t;
-    };
-    this.bgTexture = setup(gl.TEXTURE0);
-    this.fgTexture = setup(gl.TEXTURE1);
-  }
-
-  private initNoiseAsset() {
-    const gl = this.gl;
-    const size = 512;
-    const data = new Uint8Array(size * size * 4);
-    for (let i = 0; i < data.length; i += 4) {
-      const val = Math.floor(Math.random() * 255);
-      data[i] = val; // R
-      data[i + 1] = val; // G
-      data[i + 2] = val; // B
-      data[i + 3] = 255; // A
-    }
-
-    const t = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-    this.noiseTexture = t;
-  }
-
-  public setAssetResolver(resolver: (mediaId: string) => Promise<string | null>) {
+  public setAssetResolver(
+    resolver: (mediaId: string) => Promise<{ url: string; mimeType: string } | null>,
+  ) {
     this.resolveAsset = resolver;
   }
 
-  private getMediaId(clip: any): string | undefined {
-    return clip?.metadata?.mediaId || clip?.media_reference?.metadata?.mediaId;
+  public setOnNeedsRender(cb: () => void) {
+    this.onNeedsRender = cb;
   }
 
-  public async loadTimeline(timeline: OTIOTimeline) {
+  private getMediaId(clip: any): string | undefined {
+    return clip?.mediaId;
+  }
+
+  public async loadTimeline(timeline: TimelineData) {
     this.timeline = timeline;
-    const tracks = timeline.tracks.children;
-    for (const track of tracks) {
-      for (const item of track.children) {
-        if (item.OTIO_SCHEMA.startsWith('Clip.')) {
-          const mediaId = this.getMediaId(item);
-          if (mediaId) await this.ensureVideo(mediaId);
+    const clips: TimelineClip[] = [];
+
+    // Extract all unique mediaIds
+    timeline.tracks.forEach((track) => {
+      track.children.forEach((child) => {
+        if (child.type === 'Clip') {
+          clips.push(child as TimelineClip);
         }
-      }
+      });
+    });
+
+    // Warm up cache
+    await Promise.all(
+      clips.map(async (clip) => {
+        const mediaId = this.getMediaId(clip);
+        if (mediaId && !this.assetCache.has(mediaId)) {
+          await this.loadAsset(mediaId);
+        }
+      }),
+    );
+
+    this.gl.clearColor(0, 0, 0, 1);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+  }
+
+  private setupAudioGraph(
+    element: HTMLMediaElement,
+  ): { source: MediaElementAudioSourceNode; gain: GainNode } | undefined {
+    try {
+      const source = this.audioContext.createMediaElementSource(element);
+      const gain = this.audioContext.createGain();
+      source.connect(gain);
+      gain.connect(this.audioContext.destination);
+      return { source, gain };
+    } catch (e) {
+      console.error('Failed to setup audio graph', e);
+      return undefined;
     }
   }
 
-  private async ensureVideo(mediaId: string) {
-    if (this.videos.has(mediaId)) return;
-    if (!this.resolveAsset) return;
-    const url = await this.resolveAsset(mediaId);
-    if (!url) return;
-    const v = document.createElement('video');
-    v.src = url;
-    v.crossOrigin = 'anonymous';
-    v.muted = false;
-    v.playsInline = true;
-    v.preload = 'auto';
-    this.videos.set(mediaId, { element: v, loaded: false, url });
+  private async loadAsset(mediaId: string): Promise<AssetResource | null> {
+    if (this.assetCache.has(mediaId)) return this.assetCache.get(mediaId)!;
+    if (!this.resolveAsset) return null;
+
+    const data = await this.resolveAsset(mediaId);
+    if (!data) return null;
+
+    return new Promise((resolve) => {
+      const isVideo = data.mimeType.startsWith('video/');
+      const isAudio = data.mimeType.startsWith('audio/');
+
+      let element: HTMLVideoElement | HTMLImageElement | HTMLAudioElement;
+      let type: 'video' | 'image' | 'audio';
+
+      if (isVideo) {
+        element = document.createElement('video');
+        type = 'video';
+      } else if (isAudio) {
+        element = document.createElement('audio');
+        type = 'audio';
+      } else {
+        element = new Image();
+        type = 'image';
+      }
+
+      const resource: AssetResource = {
+        element,
+        type,
+        mediaId,
+        width: 0,
+        height: 0,
+      };
+
+      if (type === 'video') {
+        const v = element as HTMLVideoElement;
+        v.src = data.url;
+        v.crossOrigin = 'anonymous';
+        v.muted = false; // Important: Must be false for WebAudio
+        v.preload = 'auto';
+
+        // Setup Audio Graph
+        const audioNodes = this.setupAudioGraph(v);
+        if (audioNodes) {
+          resource.sourceNode = audioNodes.source;
+          resource.gainNode = audioNodes.gain;
+        }
+
+        v.onloadedmetadata = () => {
+          resource.width = v.videoWidth;
+          resource.height = v.videoHeight;
+          this.assetCache.set(mediaId, resource);
+          resolve(resource);
+        };
+      } else if (type === 'audio') {
+        const a = element as HTMLAudioElement;
+        a.src = data.url;
+        a.crossOrigin = 'anonymous';
+
+        // Setup Audio Graph
+        const audioNodes = this.setupAudioGraph(a);
+        if (audioNodes) {
+          resource.sourceNode = audioNodes.source;
+          resource.gainNode = audioNodes.gain;
+        }
+
+        a.onloadedmetadata = () => {
+          this.assetCache.set(mediaId, resource);
+          resolve(resource);
+        };
+      } else {
+        const img = element as HTMLImageElement;
+        img.src = data.url;
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          resource.width = img.naturalWidth;
+          resource.height = img.naturalHeight;
+          this.assetCache.set(mediaId, resource);
+          resolve(resource);
+        };
+      }
+    });
   }
 
-  public render(globalTimeSeconds: number, isPlaying: boolean) {
-    if (!this.timeline || !this.gl || !this.program) return;
+  private calculateFit(srcW: number, srcH: number, dstW: number, dstH: number) {
+    const srcRatio = srcW / srcH;
+    const dstRatio = dstW / dstH;
+    let w = dstW,
+      h = dstH,
+      x = 0,
+      y = 0;
 
+    if (srcRatio > dstRatio) {
+      w = dstW;
+      h = w / srcRatio;
+      y = (dstH - h) / 2;
+    } else {
+      h = dstH;
+      w = h * srcRatio;
+      x = (dstW - w) / 2;
+    }
+    return { x, y, width: w, height: h };
+  }
+
+  public render(currentTime: number, isPlaying: boolean) {
+    if (!this.timeline || !this.gl || !this.baseProgram) return;
+    if (!this.sceneFrameBuffer) return;
+
+    const currentTimeMs = currentTime * 1000;
+
+    // Resume AudioContext if needed
+    if (isPlaying && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().catch(() => {});
+    }
+
+    // 1. Pre-pass: Identify active media and effect
+    const activeMediaIds = new Set<string>();
+    let activeEffect: TimelineEffectClip | null = null;
+
+    for (const track of this.timeline.tracks) {
+      for (const item of track.children) {
+        if (currentTimeMs >= item.start && currentTimeMs < item.start + item.duration) {
+          if (item.type === 'Effect') {
+            activeEffect = item as TimelineEffectClip;
+          } else if (item.type === 'Clip') {
+            const mId = this.getMediaId(item);
+            if (mId) activeMediaIds.add(mId);
+          }
+        }
+      }
+    }
+
+    // 2. Resource Management: Play/Pause/Sync each resource ONCE
+    this.assetCache.forEach((resource, mediaId) => {
+      if (resource.type === 'video' || resource.type === 'audio') {
+        const mediaEl = resource.element as HTMLVideoElement | HTMLAudioElement;
+        const isActive = activeMediaIds.has(mediaId);
+
+        if (isActive && isPlaying) {
+          if (mediaEl.paused) mediaEl.play().catch(() => {});
+        } else {
+          if (!mediaEl.paused) mediaEl.pause();
+        }
+
+        // Sync logic is handled per-clip during Pass 1 for exact timing
+      }
+    });
+
+    // --- PASS 1: RENDER SCENE TO FBO ---
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.sceneFrameBuffer);
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.gl.clearColor(0, 0, 0, 1);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-    // 1. Identify active clips
-    let baseClipNode: { clip: OTIOClip; offset: number } | null = null;
-    let overlayClipNode: { clip: OTIOClip; offset: number } | null = null;
-    const audioNodes: { clip: OTIOClip; offset: number }[] = []; // Track active audio for muting
+    this.gl.useProgram(this.baseProgram);
 
-    this.timeline.tracks.children.forEach((track, trackIndex) => {
-      let pointer = 0;
+    // Bind Base Program Attributes
+    const posLoc = this.gl.getAttribLocation(this.baseProgram, 'a_position');
+    const texLoc = this.gl.getAttribLocation(this.baseProgram, 'a_texCoord');
+    this.gl.enableVertexAttribArray(posLoc);
+    this.gl.enableVertexAttribArray(texLoc);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
+    this.gl.vertexAttribPointer(posLoc, 2, this.gl.FLOAT, false, 16, 0);
+    this.gl.vertexAttribPointer(texLoc, 2, this.gl.FLOAT, false, 16, 8);
+
+    const resLoc = this.gl.getUniformLocation(this.baseProgram, 'u_resolution');
+    this.gl.uniform2f(resLoc, this.canvas.width, this.canvas.height);
+    const rectLoc = this.gl.getUniformLocation(this.baseProgram, 'u_rect');
+    const opacityLoc = this.gl.getUniformLocation(this.baseProgram, 'u_opacity');
+    const vFlipLoc = this.gl.getUniformLocation(this.baseProgram, 'u_vFlip');
+
+    const tracks = [...this.timeline.tracks];
+
+    for (const track of tracks) {
       for (const item of track.children) {
-        const dur = item.source_range.duration.value / item.source_range.duration.rate;
-        const start = pointer;
-        const end = pointer + dur;
+        if (item.type !== 'Clip') continue;
 
-        if (globalTimeSeconds >= start && globalTimeSeconds < end) {
-          if (item.OTIO_SCHEMA.startsWith('Clip.')) {
-            const clip = item as OTIOClip;
+        const startMs = item.start;
+        const durationMs = item.duration;
+        const endMs = startMs + durationMs;
 
-            if (track.kind === 'Video') {
-              if (trackIndex === 0) {
-                baseClipNode = { clip, offset: start };
-              } else {
-                overlayClipNode = { clip, offset: start };
+        if (currentTimeMs >= startMs && currentTimeMs < endMs) {
+          const clip = item as TimelineClip;
+          const mediaId = this.getMediaId(clip);
+          const resource = mediaId ? this.assetCache.get(mediaId) : null;
+
+          if (resource) {
+            const el = resource.element;
+            const sourceStartMs = clip.sourceStart;
+            const offsetMs = currentTimeMs - startMs;
+            const targetSeek = (sourceStartMs + offsetMs) / 1000;
+
+            if (resource.type === 'video' || resource.type === 'audio') {
+              const mediaEl = el as HTMLVideoElement | HTMLAudioElement;
+
+              if (!mediaEl.seeking) {
+                const diff = mediaEl.currentTime - targetSeek;
+                if (Math.abs(diff) > 0.5) {
+                  mediaEl.currentTime = targetSeek;
+                } else if (diff < -0.05) {
+                  mediaEl.playbackRate = 1.05;
+                } else if (diff > 0.05) {
+                  mediaEl.playbackRate = 0.95;
+                } else {
+                  mediaEl.playbackRate = 1.0;
+                }
               }
-            } else if (track.kind === 'Audio') {
-              audioNodes.push({ clip, offset: start });
+
+              // --- AUDIO VOLUME & BLENDING LOGIC ---
+              if (resource.gainNode) {
+                let targetVolume = 0;
+
+                if (track.kind === 'Audio') {
+                  const vol =
+                    clip.metadata?.volume !== undefined ? Number(clip.metadata.volume) : 1.0;
+                  const fadeIn = Number(clip.metadata?.fadeIn || 0);
+                  const fadeOut = Number(clip.metadata?.fadeOut || 0);
+
+                  let alpha = 1.0;
+                  const elapsed = currentTimeMs - clip.start;
+                  const remaining = clip.start + clip.duration - currentTimeMs;
+
+                  if (fadeIn > 0 && elapsed < fadeIn) {
+                    alpha = elapsed / fadeIn;
+                  } else if (fadeOut > 0 && remaining < fadeOut) {
+                    alpha = remaining / fadeOut;
+                  }
+
+                  targetVolume = vol * alpha;
+                }
+
+                // Apply immediately to handle rapid sync
+                resource.gainNode.gain.value = Math.max(0, Math.min(1.0, targetVolume));
+              }
+
+              if (resource.type === 'video') {
+                this.updateTexture(el as HTMLVideoElement);
+              }
+            } else {
+              this.updateTexture(el as HTMLImageElement);
+            }
+
+            // Draw Video to FBO
+            if (track.kind === 'Video' && resource.type !== 'audio') {
+              const fit = this.calculateFit(
+                resource.width,
+                resource.height,
+                this.canvas.width,
+                this.canvas.height,
+              );
+
+              const zoom = clip.metadata?.zoom || 1.0;
+              const panX = clip.metadata?.panX || 0;
+              const panY = clip.metadata?.panY || 0;
+
+              const width = fit.width * zoom;
+              const height = fit.height * zoom;
+
+              // Center + Pan
+              const x = fit.x - (width - fit.width) / 2 + panX;
+              const y = fit.y - (height - fit.height) / 2 + panY;
+
+              this.gl.uniform4f(rectLoc, x, y, width, height);
+              this.gl.uniform1f(opacityLoc, 1.0);
+              this.gl.uniform1f(vFlipLoc, 0.0); // Pass 1: No Flip
+              this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
             }
           }
         }
-        pointer += dur;
       }
-    });
-
-    // 2. Sync Video/Audio Elements
-    const activeMediaMap = new Map<string, number>();
-    const registerSync = (node: { clip: OTIOClip; offset: number } | null) => {
-      if (!node) return;
-      const mid = this.getMediaId(node.clip);
-      if (!mid) return;
-      const local = globalTimeSeconds - node.offset;
-      const srcStart =
-        node.clip.source_range.start_time.value / node.clip.source_range.start_time.rate;
-      activeMediaMap.set(mid, srcStart + local);
-    };
-
-    registerSync(baseClipNode);
-    registerSync(overlayClipNode);
-    audioNodes.forEach(registerSync);
-
-    this.videos.forEach((res, mid) => {
-      const targetTime = activeMediaMap.get(mid);
-      if (targetTime !== undefined) {
-        const isAudioTrack = audioNodes.some((n) => this.getMediaId(n.clip) === mid);
-        const isBase = baseClipNode && this.getMediaId(baseClipNode.clip) === mid;
-        // Unmute if on Audio Track OR if it is Main Video (and we want main audio)
-        // Default: Unmute.
-        res.element.muted = !(isAudioTrack || isBase);
-
-        if (isPlaying) {
-          if (res.element.paused) res.element.play().catch(() => {});
-          if (Math.abs(res.element.currentTime - targetTime) > 0.25) {
-            res.element.currentTime = targetTime;
-          }
-        } else {
-          if (!res.element.paused) res.element.pause();
-          if (Math.abs(res.element.currentTime - targetTime) > 0.1) {
-            res.element.currentTime = targetTime;
-          }
-        }
-      } else {
-        if (!res.element.paused) res.element.pause();
-      }
-    });
-
-    // 3. Render Composition
-    const baseMediaId = baseClipNode ? this.getMediaId(baseClipNode.clip) : null;
-    const overlayMediaId = overlayClipNode ? this.getMediaId(overlayClipNode.clip) : null;
-
-    const baseEl = baseMediaId ? this.videos.get(baseMediaId)?.element : null;
-    const overlayEl = overlayMediaId ? this.videos.get(overlayMediaId)?.element : null;
-
-    let opacity = 0.0;
-    let scale = 1.0;
-    let posX = 0.0;
-    let posY = 0.0;
-    let glitchIntensity = 0.0;
-    let filterIntensity = 0.0;
-
-    const processEffects = (clip: OTIOClip) => {
-      if (clip.effects) {
-        for (const effect of clip.effects) {
-          const name = effect.effect_name?.toLowerCase() || '';
-          const meta = effect.metadata || {};
-
-          if (name.includes('glitch')) {
-            glitchIntensity = Math.max(
-              glitchIntensity,
-              typeof meta.intensity === 'number' ? meta.intensity : 1.0,
-            );
-          }
-          if (name.includes('grayscale') || name.includes('film grain') || name.includes('noir')) {
-            filterIntensity = 1.0;
-          }
-        }
-      }
-    };
-
-    if (baseClipNode) processEffects(baseClipNode.clip);
-
-    if (overlayEl && overlayClipNode) {
-      opacity = 1.0;
-      const meta = (overlayClipNode.clip as any).metadata || {};
-      if (typeof meta.opacity === 'number') opacity = meta.opacity;
-      if (typeof meta.scale === 'number') scale = meta.scale;
-      if (meta.position && Array.isArray(meta.position)) {
-        posX = meta.position[0];
-        posY = meta.position[1];
-      }
-      processEffects(overlayClipNode.clip);
     }
 
-    // CALCULATE ASPECT CORRECTION
-    const canvasAspect = this.canvas.width / this.canvas.height;
+    // --- PASS 2: RENDER SCENE FBO TO SCREEN (WITH EFFECTS) ---
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    this.gl.clearColor(0, 0, 0, 1);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-    const getCorrection = (video: HTMLVideoElement | null) => {
-      if (!video || !video.videoWidth) return { x: 1.0, y: 1.0 };
-      const vidAspect = video.videoWidth / video.videoHeight;
-      const r = vidAspect / canvasAspect;
-      // FIT (Contain) Logic
-      // If image is wider (r > 1), we scale Y by r to shrink image height (add bars)
-      // If image is tall (r < 1), we scale X by 1/r to shrink image width
-      if (r > 1) {
-        return { x: 1.0, y: r };
-      } else {
-        return { x: 1.0 / r, y: 1.0 };
+    const programToUse = activeEffect
+      ? this.effectPrograms.get(activeEffect.effectType)
+      : this.baseProgram;
+    const finalProgram = programToUse || this.baseProgram!;
+
+    this.gl.useProgram(finalProgram);
+
+    // Bind Attributes for Final PASS
+    const pLoc = this.gl.getAttribLocation(finalProgram, 'a_position');
+    const tLoc = this.gl.getAttribLocation(finalProgram, 'a_texCoord');
+    this.gl.enableVertexAttribArray(pLoc);
+    this.gl.enableVertexAttribArray(tLoc);
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
+    this.gl.vertexAttribPointer(pLoc, 2, this.gl.FLOAT, false, 16, 0);
+    this.gl.vertexAttribPointer(tLoc, 2, this.gl.FLOAT, false, 16, 8);
+
+    const rResLoc = this.gl.getUniformLocation(finalProgram, 'u_resolution');
+    this.gl.uniform2f(rResLoc, this.canvas.width, this.canvas.height);
+
+    // If using base program, we need the u_rect full screen
+    if (finalProgram === this.baseProgram) {
+      const rRect = this.gl.getUniformLocation(finalProgram, 'u_rect');
+      this.gl.uniform4f(rRect, 0, 0, this.canvas.width, this.canvas.height);
+      const rOp = this.gl.getUniformLocation(finalProgram, 'u_opacity');
+      this.gl.uniform1f(rOp, 1.0);
+      const rVFlip = this.gl.getUniformLocation(finalProgram, 'u_vFlip');
+      this.gl.uniform1f(rVFlip, 1.0); // Pass 2: Flip FBO result
+    } else {
+      // Effect Programs
+      const rRect = this.gl.getUniformLocation(finalProgram, 'u_rect');
+      this.gl.uniform4f(rRect, 0, 0, this.canvas.width, this.canvas.height);
+      const rVFlip = this.gl.getUniformLocation(finalProgram, 'u_vFlip');
+      this.gl.uniform1f(rVFlip, 1.0); // Pass 2: Flip FBO result
+
+      // --- CALCULATE AND SET INTENSITY (EASING) ---
+      if (activeEffect) {
+        let intensity = 1.0;
+        const params = activeEffect.parameters || {};
+        const easeInThreshold = Number(params.easeIn) || 0;
+        const easeOutThreshold = Number(params.easeOut) || 0;
+
+        const elapsed = currentTimeMs - activeEffect.start;
+        const remaining = activeEffect.start + activeEffect.duration - currentTimeMs;
+
+        if (easeInThreshold > 0 && elapsed < easeInThreshold) {
+          intensity = elapsed / easeInThreshold;
+        } else if (easeOutThreshold > 0 && remaining < easeOutThreshold) {
+          intensity = remaining / easeOutThreshold;
+        }
+
+        const intensityLoc = this.gl.getUniformLocation(finalProgram, 'u_intensity');
+        this.gl.uniform1f(intensityLoc, Math.max(0, Math.min(1.0, intensity)));
+
+        // Effect-specific parameters
+        if (activeEffect.effectType === 'Zoom') {
+          const levelLoc = this.gl.getUniformLocation(finalProgram, 'u_level');
+          const level = Number(params.level) || 1.2;
+          this.gl.uniform1f(levelLoc, level);
+        }
       }
-    };
+    }
 
-    const bgCorrection = getCorrection(baseEl);
-    const fgCorrection = getCorrection(overlayEl);
+    // Bind the Scene Texture (the result of Pass 1)
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.sceneTexture);
+    // Effects usually assume u_image is unit 0
 
-    if (!baseEl && !overlayEl) return;
-
-    this.renderLayered(baseEl || null, overlayEl || null, {
-      opacity,
-      scale,
-      pos: { x: posX, y: posY },
-      glitch: glitchIntensity,
-      filter: filterIntensity,
-      time: globalTimeSeconds,
-      bgCorrection,
-      fgCorrection,
-    });
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
   }
 
-  private renderLayered(
-    bgCtx: HTMLVideoElement | null,
-    fgCtx: HTMLVideoElement | null,
-    opts: {
-      opacity: number;
-      scale: number;
-      pos: { x: number; y: number };
-      glitch: number;
-      filter: number;
-      time: number;
-      bgCorrection: { x: number; y: number };
-      fgCorrection: { x: number; y: number };
-    },
-  ) {
-    const gl = this.gl;
-    gl.useProgram(this.program);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.bgTexture);
-    if (bgCtx && bgCtx.readyState >= 2) {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bgCtx);
-    } else {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        1,
-        1,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0, 255]),
-      );
-    }
-
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.fgTexture);
-    if (fgCtx && fgCtx.readyState >= 2) {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fgCtx);
-    } else {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        1,
-        1,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0, 0]),
-      );
-    }
-
-    // Bind Noise Texture
-    gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, this.noiseTexture);
-
-    if (this.uniforms?.uFgOpacity) gl.uniform1f(this.uniforms.uFgOpacity, opts.opacity);
-    if (this.uniforms?.uFgScale) gl.uniform1f(this.uniforms.uFgScale, opts.scale);
-    if (this.uniforms?.uFgPos) gl.uniform2f(this.uniforms.uFgPos, opts.pos.x, opts.pos.y);
-
-    if (this.uniforms?.uBgScaleCorrection)
-      gl.uniform2f(this.uniforms.uBgScaleCorrection, opts.bgCorrection.x, opts.bgCorrection.y);
-    if (this.uniforms?.uFgScaleCorrection)
-      gl.uniform2f(this.uniforms.uFgScaleCorrection, opts.fgCorrection.x, opts.fgCorrection.y);
-
-    if (this.uniforms?.uGlitch) gl.uniform1f(this.uniforms.uGlitch, opts.glitch);
-    if (this.uniforms?.uFilter) gl.uniform1f(this.uniforms.uFilter, opts.filter);
-    if (this.uniforms?.uTime) gl.uniform1f(this.uniforms.uTime, opts.time);
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  private updateTexture(source: HTMLVideoElement | HTMLImageElement) {
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+    this.gl.texImage2D(
+      this.gl.TEXTURE_2D,
+      0,
+      this.gl.RGBA,
+      this.gl.RGBA,
+      this.gl.UNSIGNED_BYTE,
+      source,
+    );
+    // Re-apply params just to be safe
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
   }
 
   public dispose() {
-    this.videos.forEach((v) => {
-      v.element.removeAttribute('src');
-      v.element.load();
+    this.assetCache.forEach((res) => {
+      if (res.type === 'video' || res.type === 'audio') {
+        const v = res.element as HTMLVideoElement | HTMLAudioElement;
+        v.pause();
+        v.src = '';
+        v.load();
+      }
+      if (res.sourceNode) res.sourceNode.disconnect();
+      if (res.gainNode) res.gainNode.disconnect();
     });
-    this.videos.clear();
+
+    this.assetCache.clear();
+
+    if (this.audioContext) {
+      this.audioContext.close();
+    }
+
+    if (this.gl) {
+      if (this.baseProgram) this.gl.deleteProgram(this.baseProgram);
+      this.effectPrograms.forEach((p) => this.gl.deleteProgram(p));
+      if (this.texture) this.gl.deleteTexture(this.texture);
+      if (this.sceneTexture) this.gl.deleteTexture(this.sceneTexture);
+      if (this.sceneFrameBuffer) this.gl.deleteFramebuffer(this.sceneFrameBuffer);
+      if (this.buffer) this.gl.deleteBuffer(this.buffer);
+    }
   }
 }

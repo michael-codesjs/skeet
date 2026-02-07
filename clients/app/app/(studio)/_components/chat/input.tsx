@@ -23,6 +23,7 @@ export const ChatInput = () => {
     applyEditOperations,
     activeThreadId,
     setActiveThreadId,
+    addThread,
     setThreads,
   } = useStudioStore();
 
@@ -85,7 +86,7 @@ export const ChatInput = () => {
         const span = document.createElement('span');
         span.textContent = `@[${item.fileName}]`;
         span.className =
-          'inline-flex items-center bg-blue-500/20 text-blue-200 border border-blue-500/30 rounded px-1.5 py-0.5 text-[10px] mx-1 font-mono align-middle select-none';
+          'inline-flex items-center bg-white/10 text-white border border-white/20 rounded-md px-1.5 py-0.5 text-[10px] mx-1 font-mono font-bold align-middle select-none shadow-[0_0_10px_rgba(255,255,255,0.05)]';
         span.contentEditable = 'false'; // Treat as a single unit
 
         // Insert the chip
@@ -197,13 +198,42 @@ export const ChatInput = () => {
               for (const data of events) {
                 if (data.type === 'thread-created' && data.payload?.threadId) {
                   threadCreatedThisSession = true;
-                  setActiveThreadId(data.payload.threadId);
+                  const newThreadId = data.payload.threadId;
+                  setActiveThreadId(newThreadId);
+                  if (project?.id) {
+                    localStorage.setItem(`lastThread_${project.id}`, newThreadId);
+                  }
                 }
 
                 if (data.type === 'text-delta' && data.payload?.text) {
                   assistantContent += data.payload.text;
+
+                  const lastStep = assistantSteps[assistantSteps.length - 1];
+                  if (lastStep?.type === 'text') {
+                    lastStep.content = (lastStep.content || '') + data.payload.text;
+                  } else {
+                    // Close any running thoughts before starting text
+                    assistantSteps = assistantSteps.map((s) =>
+                      s.type === 'thought' && s.status === 'running'
+                        ? {
+                            ...s,
+                            status: 'done',
+                            duration: Math.round((Date.now() - (s.startTime || Date.now())) / 1000),
+                          }
+                        : s,
+                    );
+
+                    assistantSteps.push({
+                      id: uuidv4(),
+                      type: 'text',
+                      content: data.payload.text,
+                      status: 'done',
+                    });
+                  }
+
                   updateMessage(assistantMessageId, {
                     content: assistantContent,
+                    steps: [...assistantSteps],
                     status: 'sending',
                   });
                 }
@@ -316,10 +346,10 @@ export const ChatInput = () => {
   };
 
   return (
-    <div className="p-2 border-t border-white/5 bg-black/20 backdrop-blur-sm relative">
+    <div className="p-3 bg-transparent relative">
       {/* Mention List */}
       {mentionIsOpen && (
-        <div className="absolute bottom-full left-4 mb-2 z-50 w-64">
+        <div className="absolute bottom-full left-4 mb-3 z-50 w-72">
           <MentionList
             items={filteredItems}
             activeIndex={activeIndex}
@@ -329,35 +359,55 @@ export const ChatInput = () => {
         </div>
       )}
 
-      <div className="relative border border-white/10 rounded-xl bg-neutral-900/50 p-2 transition-all focus-within:border-white/20">
-        <div
-          ref={inputRef}
-          contentEditable
-          role="textbox"
-          spellCheck="false"
-          data-placeholder="Describe your vision (Use @ to mention clips)"
-          className="w-full bg-transparent border-none text-[10px] text-neutral-300 focus:outline-none outline-none min-h-[40px] max-h-[200px] py-3 px-3 overflow-y-auto scrollbar-hide relative before:content-[attr(data-placeholder)] before:text-neutral-500 before:absolute before:left-3 before:top-3 before:pointer-events-none empty:before:inline-block before:hidden"
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-        />
+      <div className="relative group transition-all duration-300">
+        {/* Glow effect on focus */}
+        <div className="absolute -inset-0.5 bg-linear-to-r from-white/10 to-white/0 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition duration-500" />
 
-        <div className="flex items-center justify-between px-2 pb-1">
-          <div className="flex items-center gap-3">
-            <button className="text-neutral-400 hover:text-white transition-colors p-1 hover:bg-white/5 rounded-lg">
-              <Add size={20} color="currentColor" />
-            </button>
-          </div>
+        <div className="relative flex flex-col rounded-2xl bg-neutral-900/40 backdrop-blur-xl border border-white/5 overflow-hidden transition-all duration-300 focus-within:bg-neutral-900/60 focus-within:border-white/20 shadow-2xl">
+          <div
+            ref={inputRef}
+            contentEditable
+            role="textbox"
+            spellCheck="false"
+            data-placeholder="Tell Skeet what to do... (Use @ for clips)"
+            className="w-full bg-transparent border-none text-[11px] leading-relaxed text-white/90 focus:outline-none outline-none min-h-[52px] max-h-[200px] pt-4 pb-2 px-4 overflow-y-auto scrollbar-hide relative before:content-[attr(data-placeholder)] before:text-white/20 before:absolute before:left-4 before:top-4 before:pointer-events-none empty:before:inline-block before:hidden"
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const fileName = e.dataTransfer.getData('filename');
+              if (fileName && inputRef.current) {
+                const mentionText = `@[${fileName}] `;
+                if (!inputRef.current.innerText.trim()) {
+                  inputRef.current.innerText = mentionText;
+                } else {
+                  inputRef.current.innerText += ` ${mentionText}`;
+                }
+                handleInput();
+              }
+            }}
+          />
 
-          <div className="flex items-center gap-3">
-            <button className="text-neutral-400 hover:text-white transition-colors p-1 hover:bg-white/5 rounded-lg">
-              <Microphone size={16} color="currentColor" />
-            </button>
+          <div className="flex items-center justify-between px-3 pb-2 pt-1 border-t border-white/2">
+            <div className="flex items-center gap-1">
+              <button className="flex items-center justify-center h-8 w-8 text-white/40 hover:text-white/80 transition-all hover:bg-white/5 rounded-xl">
+                <Add size={18} color="currentColor" />
+              </button>
+              <button className="flex items-center justify-center h-8 w-8 text-white/40 hover:text-white/80 transition-all hover:bg-white/5 rounded-xl">
+                <Microphone size={16} color="currentColor" />
+              </button>
+            </div>
+
             <button
               onClick={handleSend}
               disabled={isStreaming}
-              className="p-1 bg-white text-black rounded-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+              className="flex items-center justify-center h-8 w-8 bg-white text-black rounded-xl hover:bg-neutral-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 border border-white/20 shadow-[0_0_15px_rgba(255,255,255,0.1)]"
             >
-              <ArrowRight size={14} color="currentColor" />
+              <ArrowRight size={14} color="currentColor" variant="Bold" />
             </button>
           </div>
         </div>

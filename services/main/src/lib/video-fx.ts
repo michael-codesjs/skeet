@@ -4,7 +4,7 @@ export type StyleProfileType =
   | 'minimalist_luxury'
   | 'music_video_dynamic';
 
-export interface StyleProfile {
+export type StyleProfile = {
   name: string;
   speedFactor: number; // Global speed bias
   transitionDefault: string;
@@ -16,7 +16,7 @@ export interface StyleProfile {
   audio?: {
     mixType: 'sharp' | 'smooth';
   };
-}
+};
 
 // 1. Cinematic Noir: Moody, slow, grainy, B&W
 const CINEMATIC_NOIR: StyleProfile = {
@@ -118,7 +118,7 @@ export const PROFILES: Record<string, StyleProfile> = {
 };
 
 // Heuristic to pick profile based on user prompt/vibe
-export function getStyleProfile(vibe: string): StyleProfile {
+export const getStyleProfile = (vibe: string): StyleProfile => {
   const v = vibe.toLowerCase();
   if (v.includes('dark') || v.includes('noir') || v.includes('moody') || v.includes('cinema'))
     return CINEMATIC_NOIR;
@@ -133,4 +133,4 @@ export function getStyleProfile(vibe: string): StyleProfile {
   if (v.includes('luxury') || v.includes('clean') || v.includes('minimal'))
     return MINIMALIST_LUXURY;
   return MUSIC_VIDEO_DYNAMIC; // Default
-}
+};

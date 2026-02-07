@@ -6065,6 +6065,11 @@ etag@^1.8.1, etag@~1.8.1:
   resolved "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz"
   integrity sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==
 
+etro@^0.12.1:
+  version "0.12.1"
+  resolved "https://registry.yarnpkg.com/etro/-/etro-0.12.1.tgz#1d47e5f9973534f17fb0a20ea5ed7b8fc9c7b901"
+  integrity sha512-vQcubmdVw8fEDUi6mzwef1ITR/FG4UJcLPE+I1PWYXSPasUPBU+WGmkY4a8t4eAC19yGScmvvy3XRMEuXU4uUQ==
+
 event-target-shim@^5.0.0:
   version "5.0.1"
   resolved "https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz"

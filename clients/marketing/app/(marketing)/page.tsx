@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { ArrowRight, MagicStar, Play } from 'iconsax-react';
 import Image from 'next/image';
-import { DirectorsLens } from './_components/directors-lens';
+import { HeroFilter } from './_components/hero-filter';
 
 import { useAuthStore } from '@/store/auth';
 import { useEffect } from 'react';
@@ -143,7 +143,7 @@ export default function Home() {
 
         <div className="relative max-w-3xl mx-auto mt-20 space-y-32">
           {/* Central Vertical Track connecting the story */}
-          <div className="absolute left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 bg-linear-to-b from-purple-500/30 via-blue-500/30 to-orange-500/30 hidden md:block" />
+          <div className="absolute left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 bg-white/10 hidden md:block" />
 
           {/* 1. The Scout */}
           {/* 1. The Scout */}
@@ -161,15 +161,15 @@ export default function Home() {
                 variant="Bold"
                 color="currentColor"
               />
-              <div className="absolute inset-0 bg-purple-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-white/5 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
             {/* Content */}
             <div className="relative z-10 bg-black/40 backdrop-blur-sm p-4 rounded-2xl border border-white/0">
               <h3 className="text-3xl font-bold text-white mb-4">The Scout</h3>
               <p className="text-xl text-neutral-400 leading-relaxed font-light max-w-lg mx-auto">
-                It starts with raw data. Skeet watches hours of your footage, identifying hero
-                shots, filtering out shaky takes, and tagging every moment with semantic context.
+                The Scout identifies hero shots, tags context, and organizes your library
+                semantically, making every moment instantly searchable.
               </p>
             </div>
           </motion.div>
@@ -184,17 +184,16 @@ export default function Home() {
           >
             {/* Icon Marker */}
             <div className="shrink-0 relative z-10 w-24 h-24 rounded-3xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center shadow-[0_0_50px_-10px_rgba(59,130,246,0.25)] group-hover:scale-110 transition-transform duration-500 mb-8">
-              <Play size={36} className="text-blue-400" variant="Bold" color="currentColor" />
-              <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Play size={36} className="text-white" variant="Bold" color="currentColor" />
+              <div className="absolute inset-0 bg-white/5 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
             {/* Content */}
             <div className="relative z-10 bg-black/40 backdrop-blur-sm p-4 rounded-2xl border border-white/0">
-              <h3 className="text-3xl font-bold text-white mb-4">The Director</h3>
+              <h3 className="text-3xl font-bold text-white mb-4">The Assistant</h3>
               <p className="text-xl text-neutral-400 leading-relaxed font-light max-w-lg mx-auto">
-                You provide the intent. Describe the "vibe", specify the pacing, or reference a
-                style. The Director agent interprets your vision and converts it into editing
-                decisions.
+                Your creative partner. Describe your vision or specify the pacing; the Assistant
+                orchestrates your clips into a cohesive sequence on the timeline.
               </p>
             </div>
           </motion.div>
@@ -215,7 +214,7 @@ export default function Home() {
                 variant="Bold"
                 color="currentColor"
               />
-              <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-white/5 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
             {/* Content */}
@@ -230,7 +229,7 @@ export default function Home() {
         </div>
       </section>
 
-      <DirectorsLens />
+      <HeroFilter />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const OperationType = z.enum(['APPEND', 'INSERT', 'OVERLAY', 'TRIM', 'EFFECT']);
+const OperationType = z.enum(['APPEND', 'INSERT', 'OVERLAY', 'TRIM', 'EFFECT', 'DELETE']);
 
 const BaseOperation = z.object({
   type: OperationType,
@@ -39,6 +39,11 @@ const TrimOperation = BaseOperation.extend({
   newDuration: z.number().describe('New duration for the clip.'),
 });
 
+const DeleteOperation = BaseOperation.extend({
+  type: z.literal('DELETE'),
+  timelineStartTime: z.number().describe('Start time of the clip on timeline to delete.'),
+});
+
 const EffectOperation = BaseOperation.extend({
   type: z.literal('EFFECT'),
   effectType: z.enum(['GLITCH', 'ZOOM', 'FILTER', 'COLOR_GRADE', 'TRANSITION', 'SPEED_RAMP']),
@@ -62,7 +67,14 @@ export const EditDecisionListSchema = z.object({
   reasoning: z.string().describe('The "Director\'s Commentary". Why these shots? Why this rhythm?'),
   operations: z
     .array(
-      z.union([AppendOperation, InsertOperation, OverlayOperation, TrimOperation, EffectOperation]),
+      z.union([
+        AppendOperation,
+        InsertOperation,
+        OverlayOperation,
+        TrimOperation,
+        DeleteOperation,
+        EffectOperation,
+      ]),
     )
     .describe('Ordered list of atomic edit operations to build the timeline.'),
 });

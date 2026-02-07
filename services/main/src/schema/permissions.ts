@@ -10,6 +10,16 @@ const isAuthenticated = rule({ cache: 'contextual' })(async (
   return ctx.user?.id !== undefined && ctx.user?.id !== null;
 });
 
+const isOwner = rule({ cache: 'strict' })(async (parent, _args, ctx: Context) => {
+  if (!ctx.user?.id) return false;
+  return parent?.userId === ctx.user.id;
+});
+
+const isSelf = rule({ cache: 'strict' })(async (parent, _args, ctx: Context) => {
+  if (!ctx.user?.id) return false;
+  return parent?.id === ctx.user.id;
+});
+
 export const permissions = shield(
   {
     Query: {
@@ -21,6 +31,9 @@ export const permissions = shield(
     Mutation: {
       '*': isAuthenticated,
     },
+    Project: isOwner,
+    Media: isOwner,
+    User: isSelf,
   },
   {
     allowExternalErrors: true,

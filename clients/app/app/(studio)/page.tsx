@@ -10,7 +10,7 @@ import { useQuery } from '@apollo/client/react';
 import { useEffect, useState } from 'react';
 import { DirectorChat } from './_components/chat';
 import { CreateProject } from './_components/create-project';
-import { StudioFooter } from './_components/footer';
+import { ExportView } from './_components/export-view';
 import { StudioHeader } from './_components/header';
 import { Media } from './_components/media';
 import { MissingAssetsModal } from './_components/missing-assets-modal';
@@ -58,26 +58,17 @@ export default function ProjectStudioPage() {
     }
   }, [data, setProject]);
 
-  // Check for missing assets when project OTIO changes
+  // Check for missing assets when project media changes
   useEffect(() => {
-    if (project?.otio) {
-      const mediaIds = new Set<string>();
-      project.otio.tracks.children.forEach((track) => {
-        track.children.forEach((item) => {
-          if (item.OTIO_SCHEMA.startsWith('Clip.')) {
-            const mediaId = (item as any).media_reference?.metadata?.mediaId;
-            if (mediaId) mediaIds.add(mediaId);
-          }
-        });
+    if (project?.media && project.media.length > 0) {
+      const mediaIds = project.media.map((m: any) => m.id);
+      checkAssets(mediaIds).then((statuses) => {
+        setMissingAssets(statuses.filter((s) => !s.isLocal));
       });
-
-      if (mediaIds.size > 0) {
-        checkAssets(Array.from(mediaIds)).then((statuses) => {
-          setMissingAssets(statuses.filter((s) => !s.isLocal));
-        });
-      }
+    } else {
+      setMissingAssets([]);
     }
-  }, [project?.otio, checkAssets]);
+  }, [project?.media, checkAssets]);
 
   const handleSync = async () => {
     if (!project?.media) return;
@@ -102,17 +93,16 @@ export default function ProjectStudioPage() {
   };
 
   useProjectUpdates(activeProjectId || '', (data) => {
-    // If it's a full project update (e.g. OTIO timeline ready)
-    if (data.projectId && data.otio) {
+    // If it's a full project update (e.g. timeline ready)
+    if (data.projectId && data.timeline) {
       console.log('[Studio] Received project-updated notification:', data);
 
       const currentProject = useStudioStore.getState().project;
       if (currentProject) {
         setProject({
           ...currentProject,
-          otio: data.otio,
+          timeline: data.timeline,
         });
-        success('Timeline updated!');
       }
     }
 
@@ -151,6 +141,7 @@ export default function ProjectStudioPage() {
       {/* Studio UI Background */}
       <div className={cn('flex flex-col h-full w-full transition-all duration-700')}>
         <StudioHeader />
+        <ExportView />
 
         <MissingAssetsModal
           missingAssets={missingAssets}
@@ -176,7 +167,7 @@ export default function ProjectStudioPage() {
           <DirectorChat />
         </div>
 
-        <StudioFooter />
+        {/* <StudioFooter /> */}
       </div>
 
       {(isCreatingProject || (mounted && projects.length === 0)) && (

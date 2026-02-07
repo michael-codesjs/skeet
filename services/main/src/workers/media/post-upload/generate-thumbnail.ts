@@ -35,3 +35,20 @@ export const generateThumbnail = async (videoPath: string, mediaId: string): Pro
     });
   });
 };
+
+/**
+ * Generates a resized proxy for an image.
+ */
+export const generateImageProxy = async (imagePath: string, mediaId: string): Promise<string> => {
+  const tempDir = os.tmpdir();
+  const proxyPath = path.join(tempDir, `${mediaId}-proxy.jpg`);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(imagePath)
+      .size('1280x?') // Resize to width 1280, maintain aspect ratio
+      .outputOptions(['-q:v 2']) // High quality JPEG
+      .on('end', () => resolve(proxyPath))
+      .on('error', reject)
+      .save(proxyPath);
+  });
+};

@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useStudioStore } from '@/stores/studio';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CloseCircle, SearchNormal1 } from 'iconsax-react';
+import { SearchNormal1 } from 'iconsax-react';
 import { useEffect, useRef, useState } from 'react';
 
 export function Search() {
@@ -52,7 +52,7 @@ export function Search() {
             size={16}
             color="currentColor"
             variant={isFocused ? 'Bold' : 'Linear'}
-            className={cn('transition-all duration-300', isFocused && 'text-white scale-110')}
+            className={cn('transition-all duration-300', isFocused && '')}
           />
         </div>
 
@@ -65,13 +65,13 @@ export function Search() {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder="Scout moments, tags, vibes..."
-          className="flex-1 bg-transparent py-3 text-[10px] text-white placeholder:text-neutral-600 focus:outline-none focus:ring-0 w-full"
+          className="flex-1 bg-transparent py-3 text-[11px] text-white placeholder:text-neutral-600 focus:outline-none focus:ring-0 w-full"
         />
 
         {/* Action Section (Clear or Shortcut Hint) */}
         <div className="pr-4 flex items-center">
           <AnimatePresence mode="wait">
-            {searchQuery ? (
+            {/* {searchQuery ? (
               <motion.button
                 key="clear"
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -95,22 +95,10 @@ export function Search() {
               >
                 <span className="text-[10px]">/</span>
               </motion.div>
-            )}
+            )} */}
           </AnimatePresence>
         </div>
       </motion.div>
-
-      {/* Focus Glow Effect */}
-      <AnimatePresence>
-        {isFocused && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute -inset-px rounded-2xl bg-linear-to-r from-white/10 via-white/5 to-white/10 -z-10 blur-[2px]"
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -68,27 +68,43 @@ export const useAssetManager = () => {
       let completed = 0;
 
       try {
-        await Promise.all(
-          assetsToSync.map(async (asset) => {
-            try {
-              const resp = await fetch(asset.url);
-              const blob = await resp.blob();
-              await saveAsset(asset.mediaId, blob);
-              completed++;
-              setProgress(Math.round((completed / assetsToSync.length) * 100));
-            } catch (err) {
-              console.error(`Failed to sync asset ${asset.mediaId}:`, err);
+        for (const asset of assetsToSync) {
+          if (!asset.url || !asset.url.startsWith('http')) {
+            console.warn(`[AssetManager] Skipping asset ${asset.mediaId}: Invalid URL`, asset.url);
+            continue;
+          }
+
+          try {
+            // Append a small cache-buster to avoid CORS cache pollution
+            // from previous non-CORS <img src="..."> requests
+            const syncUrl = new URL(asset.url);
+            syncUrl.searchParams.append('s-sync', Date.now().toString());
+
+            console.log(`[AssetManager] Syncing asset ${asset.mediaId} from ${syncUrl.toString()}`);
+            const resp = await fetch(syncUrl.toString(), {
+              // Note: We don't use 'force-cache' here to ensure we get a fresh CORS-enabled response
+              // but we let the browser manage internal caching if it wants.
+            });
+
+            if (!resp.ok) {
+              throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
             }
-          }),
-        );
-        toast({ title: 'Sync Complete', description: 'All project assets are now local.' });
+
+            const blob = await resp.blob();
+            await saveAsset(asset.mediaId, blob);
+            completed++;
+            setProgress(Math.round((completed / assetsToSync.length) * 100));
+          } catch (err) {
+            console.error(
+              `[AssetManager] Failed to sync asset ${asset.mediaId} (${asset.url}):`,
+              err,
+            );
+          }
+        }
+        toast('Sync Complete: All project assets are now local.', 'success');
       } catch (err) {
         console.error('Asset sync failed:', err);
-        toast({
-          title: 'Sync Failed',
-          description: 'Could not download some assets.',
-          variant: 'destructive',
-        });
+        toast('Sync Failed: Could not download some assets.', 'error');
       } finally {
         setIsSyncing(false);
         setProgress(0);
@@ -101,6 +117,7 @@ export const useAssetManager = () => {
     checkAssets,
     syncAssets,
     getAsset,
+    saveAsset,
     isSyncing,
     progress,
   };

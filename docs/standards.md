@@ -54,3 +54,14 @@ We use a specialized `Image` component for rendering images that require consist
   ```tsx
   <Image src={user.profilePicture} className="w-10 h-10 rounded-full" alt="Profile" />
   ```
+
+## Keyboard-First Workflow
+
+Skeet is designed for high-velocity editing. Every core action should be accessible via keyboard shortcuts.
+
+- **Global Shortcuts**:
+  - `SPACE`: Toggle Play/Pause on the active sequence.
+  - `/`: Focus semantic media search.
+  - `CMD + K`: Open the Command Palette for assistant orchestration.
+  - `@`: Trigger the mention system within the Assistant chat.
+- **UI Feedback**: Always display keyboard hints in the footer or tooltips to aid discovery.

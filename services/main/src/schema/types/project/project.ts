@@ -1,6 +1,8 @@
-import { extendType, nonNull, objectType, stringArg } from 'nexus';
+import { triggerPusherEvent } from '@/lib/pusher';
+import { s3 } from '@/lib/storage/s3';
+import { getProjectMetadata, getTimeline, saveTimeline } from '@/lib/timeline/persistence';
+import { extendType, inputObjectType, nonNull, objectType, stringArg } from 'nexus';
 import * as NexusPrisma from 'nexus-prisma';
-import { s3 } from '../../../lib/storage/s3';
 import { Media } from '../media/media';
 
 const { Project: ProjectNexus } = NexusPrisma;
@@ -16,10 +18,12 @@ export const Project = objectType({
     t.field(ProjectNexus.description);
     t.field(ProjectNexus.finalS3Key);
     t.field(ProjectNexus.status);
-    t.field('otio', {
-      type: ProjectNexus.otio.type,
+    t.field('timeline', {
+      type: ProjectNexus.timeline.type,
       resolve: async (parent) => {
-        return (parent as any).otio;
+        // Computed field: Try Redis cache first, fallback to DB
+        const timeline = await getTimeline(parent.id);
+        return timeline || (parent as any).timeline;
       },
     });
     t.list.field('media', {
@@ -89,6 +93,43 @@ export const ProjectQueries = extendType({
   },
 });
 
+export const TimelineTrackChildInput = inputObjectType({
+  name: 'TimelineTrackChildInput',
+  definition(t) {
+    t.nonNull.string('type'); // 'Clip' | 'Gap' | 'Effect'
+    t.nonNull.int('start');
+    t.nonNull.int('duration');
+    // Clip fields
+    t.string('mediaId');
+    t.int('sourceStart');
+    // Effect fields
+    t.string('effectType');
+    t.field('parameters', { type: 'Json' });
+    // Common
+    t.string('name');
+    t.field('metadata', { type: 'Json' });
+  },
+});
+
+export const TimelineTrackInput = inputObjectType({
+  name: 'TimelineTrackInput',
+  definition(t) {
+    t.nonNull.string('name');
+    t.nonNull.string('kind'); // 'Video' | 'Audio'
+    t.nonNull.list.nonNull.field('children', { type: TimelineTrackChildInput });
+    t.field('metadata', { type: 'Json' });
+  },
+});
+
+export const TimelineInput = inputObjectType({
+  name: 'TimelineInput',
+  definition(t) {
+    t.nonNull.string('name');
+    t.nonNull.list.nonNull.field('tracks', { type: TimelineTrackInput });
+    t.field('metadata', { type: 'Json' });
+  },
+});
+
 export const ProjectMutations = extendType({
   type: 'Mutation',
   definition(t) {
@@ -130,13 +171,123 @@ export const ProjectMutations = extendType({
           throw new Error('Not authorized');
         }
 
-        return ctx.prisma.project.update({
+        const updatedProject = await ctx.prisma.project.update({
           where: { id },
           data: {
             title: title || undefined,
             description: description || undefined,
           },
         });
+
+        // Broadcast update via Pusher
+        await triggerPusherEvent(`project-${id}`, 'project-updated', {
+          projectId: id,
+          title: updatedProject.title,
+          description: updatedProject.description,
+        });
+
+        return updatedProject;
+      },
+    });
+
+    t.field('saveProjectTimeline', {
+      type: 'Project',
+      args: {
+        id: nonNull(stringArg()),
+        timeline: nonNull(TimelineInput),
+      },
+      resolve: async (_root, { id, timeline }: any, ctx) => {
+        // 1. Ownership Check (Cached Metadata)
+        const projectMetadata = await getProjectMetadata(id);
+        if (!projectMetadata || projectMetadata.userId !== ctx.user.id) {
+          throw new Error('Project not found');
+        }
+
+        // 2. Save entire timeline to both Redis and DB (write-through)
+        await saveTimeline(id, timeline as any);
+
+        // 3. Broadcast update to other connected clients
+        await triggerPusherEvent(`project-${id}`, 'project-updated', {
+          projectId: id,
+          timeline: timeline,
+        });
+
+        return {
+          ...projectMetadata,
+          timeline: timeline,
+        } as any;
+      },
+    });
+
+    t.field('exportProjectVideo', {
+      type: 'Project',
+      args: {
+        id: nonNull(stringArg()),
+      },
+      resolve: async (_root, { id }, ctx) => {
+        const project = await ctx.prisma.project.findUnique({
+          where: { id },
+        });
+
+        if (!project) throw new Error('Project not found');
+        if (project.userId !== ctx.user.id) throw new Error('Not authorized');
+
+        console.log(`[Export] 🎬 Starting export for project: ${id}`);
+
+        try {
+          // 1. Update status to processing
+          await ctx.prisma.project.update({
+            where: { id },
+            data: { status: 'PROCESSING' },
+          });
+
+          // 2. Broadcast export started
+          await triggerPusherEvent(`project-${id}`, 'export-started', {
+            projectId: id,
+            startedAt: new Date().toISOString(),
+          });
+
+          // 3. Execute export (synchronous)
+          const { exportService } = await import('@/lib/video/export-service');
+          const finalKey = await exportService.exportProject(id);
+
+          console.log(`[Export] ✅ Project ${id} exported successfully to ${finalKey}`);
+
+          // 4. Update project with final S3 key and status
+          const updatedProject = await ctx.prisma.project.update({
+            where: { id },
+            data: {
+              finalS3Key: finalKey,
+              status: 'READY',
+            },
+          });
+
+          // 5. Broadcast export completed
+          await triggerPusherEvent(`project-${id}`, 'export-completed', {
+            projectId: id,
+            finalS3Key: finalKey,
+            completedAt: new Date().toISOString(),
+          });
+
+          return updatedProject;
+        } catch (error) {
+          console.error(`[Export] ❌ Export failed for project ${id}:`, error);
+
+          // Update status to FAILED
+          await ctx.prisma.project.update({
+            where: { id },
+            data: { status: 'FAILED' },
+          });
+
+          // Broadcast export failed
+          await triggerPusherEvent(`project-${id}`, 'export-failed', {
+            projectId: id,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            failedAt: new Date().toISOString(),
+          });
+
+          throw error;
+        }
       },
     });
   },

@@ -13,6 +13,7 @@
     "@hookform/resolvers": "^5.2.2",
     "axios": "^1.13.3",
     "clsx": "^2.1.1",
+    "etro": "^0.12.1",
     "framer-motion": "^12.27.0",
     "graphql": "^16.12.0",
     "iconsax-react": "^0.0.8",

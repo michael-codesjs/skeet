@@ -12,24 +12,24 @@ interface DebugModalProps {
 export function DebugModal({ isOpen, onClose }: DebugModalProps) {
   const project = useStudioStore((state) => state.project);
   const setProject = useStudioStore((state) => state.setProject);
-  const [otioJson, setOtioJson] = useState('');
+  const [timelineJson, setTimelineJson] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (project?.otio) {
-      setOtioJson(JSON.stringify(project.otio, null, 2));
+    if (project?.timeline) {
+      setTimelineJson(JSON.stringify(project.timeline, null, 2));
     }
-  }, [project?.otio, isOpen]);
+  }, [project?.timeline, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
     try {
-      const parsed = JSON.parse(otioJson);
+      const parsed = JSON.parse(timelineJson);
       if (project) {
         setProject({
           ...project,
-          otio: parsed,
+          timeline: parsed,
         });
       }
       setError(null);
@@ -46,7 +46,7 @@ export function DebugModal({ isOpen, onClose }: DebugModalProps) {
         <div className="flex items-center justify-between border-b border-white/5 p-6 bg-neutral-900/50">
           <div className="flex items-center gap-3 text-white">
             <Command size={20} variant="Bold" />
-            <h2 className="text-xl font-bold">Debug: OTIO Editor</h2>
+            <h2 className="text-xl font-bold">Debug: Timeline Editor</h2>
           </div>
           <button onClick={onClose} className="text-neutral-500 hover:text-white transition-colors">
             <CloseCircle size={24} />
@@ -56,13 +56,13 @@ export function DebugModal({ isOpen, onClose }: DebugModalProps) {
         {/* Editor Area */}
         <div className="flex-1 min-h-0 p-6 flex flex-col gap-4">
           <p className="text-sm text-neutral-400">
-            Directly edit the OTIO JSON. Useful for debugging playback or effect issues.
+            Directly edit the Timeline JSON. Useful for debugging playback or effect issues.
           </p>
 
           <div className="flex-1 relative font-mono text-sm">
             <textarea
-              value={otioJson}
-              onChange={(e) => setOtioJson(e.target.value)}
+              value={timelineJson}
+              onChange={(e) => setTimelineJson(e.target.value)}
               className="w-full h-full bg-black/40 border border-white/10 rounded-xl p-4 text-neutral-300 focus:outline-none focus:border-blue-500/50 resize-none"
               spellCheck={false}
             />

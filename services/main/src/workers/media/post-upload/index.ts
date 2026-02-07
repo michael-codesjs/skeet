@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { extractMetadata, generateVideoProxy } from './extract-streams';
-import { generateThumbnail } from './generate-thumbnail';
+import { generateImageProxy, generateThumbnail } from './generate-thumbnail';
 import { downloadFile, getMediaType, uploadFile } from './utils';
 
 /**
@@ -177,8 +177,46 @@ export const postMediaUploadWorker = async (payload: PostMediaUploadJobPayload):
           console.warn('[Post-Upload Worker] Cleanup error:', cleanupError);
         }
       }
+    } else if (mediaType === 'image') {
+      const tempDir = os.tmpdir();
+      const tempImagePath = path.join(tempDir, `${mediaId}-${media.fileName}`);
+      let tempProxyPath: string | null = null;
+
+      try {
+        await downloadFile(media.s3Key, tempImagePath);
+        tempProxyPath = await generateImageProxy(tempImagePath, mediaId);
+
+        const proxyKey = media.s3Key.replace(/^(.*\/)?([^/]+)$/, `$1proxies/${mediaId}.jpg`);
+        await uploadFile(tempProxyPath, proxyKey, 'image/jpeg');
+
+        await prisma.media.update({
+          where: { id: mediaId },
+          data: { proxyUrl: proxyKey, status: 'READY' },
+        });
+
+        const signedProxyUrl = await s3.getDownloadUrl(proxyKey);
+        finalThumbnailUrl = signedProxyUrl;
+
+        await triggerPusherEvent(`project-${projectId}`, 'asset-updated', {
+          mediaId,
+          proxyUrl: signedProxyUrl,
+          thumbnailUrl: signedProxyUrl,
+          status: 'READY',
+        });
+      } catch (error) {
+        console.error(`[Post-Upload Worker] Image proxy generation failed for ${mediaId}:`, error);
+        await prisma.media.update({
+          where: { id: mediaId },
+          data: { status: 'READY' },
+        });
+      } finally {
+        await Promise.allSettled([
+          fs.promises.unlink(tempImagePath).catch(() => {}),
+          tempProxyPath ? fs.promises.unlink(tempProxyPath).catch(() => {}) : Promise.resolve(),
+        ]);
+      }
     } else {
-      // For images, audio or unknown, we just mark as READY for now
+      // For audio or unknown, we just mark as READY for now
       await prisma.media.update({
         where: { id: mediaId },
         data: { status: 'READY' },
@@ -189,130 +227,126 @@ export const postMediaUploadWorker = async (payload: PostMediaUploadJobPayload):
     console.log(`[Post-Upload Worker] Starting AI analysis for ${mediaId}...`);
     try {
       const mediaAnalyzer = mastra.getAgent('mediaAnalyzer');
-      // Always use the original media file for analysis (signed URL)
-      // This ensures we analyze the video itself (not just a thumbnail) and avoid 403 errors on private buckets
       const analysisUrl = await s3.getDownloadUrl(media.s3Key);
 
-      if (analysisUrl && mediaType === 'video') {
-        try {
-          const project = await prisma.project.findUnique({
-            where: { id: projectId },
-            select: { title: true, description: true },
-          });
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { title: true, description: true },
+      });
 
-          const projectContext = project
-            ? `\n\nProject Context:\nTitle: ${project.title || 'Untitled'}\nDescription: ${project.description || 'No description provided.'}\nUse this context to inform your analysis and tagging, prioritizing elements relevant to this project's theme.`
-            : '';
+      const projectContext = project
+        ? `\n\nProject Context:\nTitle: ${project.title || 'Untitled'}\nDescription: ${project.description || 'No description provided.'}\nUse this context to inform your analysis and tagging, prioritizing elements relevant to this project's theme.`
+        : '';
 
-          console.log(`[Post-Upload Worker] Sending to AI Analyzer: ${analysisUrl}`);
-          const response = await mediaAnalyzer.generate(
-            [
+      const contentPrompt =
+        mediaType === 'video'
+          ? 'Analyze this video content'
+          : mediaType === 'image'
+            ? 'Analyze this image'
+            : mediaType === 'audio'
+              ? 'Analyze this audio track'
+              : 'Analyze this media';
+
+      console.log(`[Post-Upload Worker] Sending to AI Analyzer: ${analysisUrl} (${mediaType})`);
+      const response = await mediaAnalyzer.generate(
+        [
+          {
+            role: 'user',
+            content: [
               {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Analyze this video content.${projectContext}`,
-                  },
-                  {
-                    type: 'file',
-                    data: analysisUrl,
-                    mimeType: media.mimeType,
-                  },
-                ],
+                type: 'text',
+                text: `${contentPrompt}.${projectContext}`,
+              },
+              {
+                type: 'file',
+                data: analysisUrl,
+                mimeType: media.mimeType,
               },
             ],
-            {
-              structuredOutput: {
-                schema: MediaAnalysisSchema,
-              },
-            },
-          );
+          },
+        ],
+        {
+          structuredOutput: {
+            schema: MediaAnalysisSchema,
+          },
+        },
+      );
 
-          console.log(`[Post-Upload Worker] AI Analysis complete for ${mediaId}`);
+      console.log(`[Post-Upload Worker] AI Analysis complete for ${mediaId}`);
 
-          const analysisData = response.object;
+      const analysisData = response.object;
 
-          if (analysisData) {
-            // Aggregate tags from all segments
-            const allTags = analysisData.segments
-              .flatMap((segment) => [
-                ...(segment.usageTags || []),
-                segment.aesthetics?.lighting,
-                segment.aesthetics?.texture,
-                segment.camera?.shotSize,
-                segment.camera?.movement,
-                ...(segment.aesthetics?.colors || []),
-              ])
-              .filter(Boolean);
+      if (analysisData) {
+        // Aggregate tags from all segments
+        const allTags = analysisData.segments
+          .flatMap((segment) => [
+            ...(segment.usageTags || []),
+            segment.visual_details?.lighting?.style,
+            segment.visual_details?.aesthetics?.texture,
+            segment.visual_details?.composition?.shot_size,
+            segment.visual_details?.composition?.movement,
+            ...(segment.visual_details?.aesthetics?.colors || []),
+            ...(segment.audio_details?.instruments || []),
+            segment.audio_details?.mood,
+          ])
+          .filter(Boolean);
 
-            await prisma.media.update({
-              where: { id: mediaId },
-              data: {
-                analysisReady: true,
-                summary: analysisData.summary, // Use the overall summary
-                tags: [...new Set(allTags)], // Distinct tags across all segments
-                shotBreakdown: analysisData, // Store the full structure with segments
-              },
-            });
+        await prisma.media.update({
+          where: { id: mediaId },
+          data: {
+            analysisReady: true,
+            summary: analysisData.summary,
+            tags: [...new Set(allTags)] as string[],
+            shotBreakdown: analysisData as any,
+          },
+        });
 
-            // --- RAG INGESTION ---
-            console.log(
-              `[Post-Upload Worker] Ingesting ${analysisData.segments.length} segments into RAG...`,
-            );
+        // --- RAG INGESTION ---
+        console.log(
+          `[Post-Upload Worker] Ingesting ${analysisData.segments.length} segments into RAG...`,
+        );
 
-            try {
-              const embedder = new ModelRouterEmbeddingModel('google/text-embedding-004');
-              const { embeddings } = await embedder.doEmbed({
-                values: analysisData.segments.map((s) => s.vectorContext),
-              });
-
-              await getMediaVectorStore().upsert({
-                indexName: 'media-segments',
-                vectors: embeddings,
-                metadata: analysisData.segments.map((s, i) => ({
-                  mediaId,
-                  projectId,
-                  startTime: s.startTime,
-                  endTime: s.endTime,
-                  subject: s.subject,
-                  energy: s.metrics.energy,
-                  text: s.vectorContext,
-                })),
-              });
-
-              console.log(`[Post-Upload Worker] RAG Ingestion complete for ${mediaId}`);
-            } catch (ragError) {
-              console.error(`[Post-Upload Worker] RAG Ingestion failed:`, ragError);
-              // Don't fail the whole process if RAG fails, but log it
-            }
-
-            // Notify UI that AI analysis is complete
-            await triggerPusherEvent(`project-${projectId}`, 'asset-updated', {
-              mediaId,
-              analysisReady: true,
-              summary: analysisData.summary,
-              tags: [...new Set(allTags)],
-              aiStatus: 'SUCCESS',
-            });
-          }
-        } catch (error) {
-          console.error(`[Post-Upload Worker] AI Analysis failed for ${mediaId}:`, error);
-          await triggerPusherEvent(`project-${projectId}`, 'asset-updated', {
-            mediaId,
-            aiStatus: 'FAILED',
-            error: 'AI analysis failed to process response structure',
+        try {
+          const embedder = new ModelRouterEmbeddingModel('google/gemini-embedding-001');
+          const { embeddings } = await embedder.doEmbed({
+            values: analysisData.segments.map((s) => s.vectorContext),
           });
+
+          await getMediaVectorStore().upsert({
+            indexName: 'media-segments',
+            vectors: embeddings.map((emb) => emb.slice(0, 1536)),
+            metadata: analysisData.segments.map((s, i) => ({
+              mediaId,
+              projectId,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              subject: s.narrative_log,
+              energy: s.metrics.energy,
+              text: s.vectorContext,
+            })),
+          });
+
+          console.log(`[Post-Upload Worker] RAG Ingestion complete for ${mediaId}`);
+        } catch (ragError) {
+          console.error(`[Post-Upload Worker] RAG Ingestion failed:`, ragError);
         }
+
+        // Notify UI that AI analysis is complete
+        await triggerPusherEvent(`project-${projectId}`, 'asset-updated', {
+          mediaId,
+          analysisReady: true,
+          summary: analysisData.summary,
+          tags: [...new Set(allTags)],
+          aiStatus: 'SUCCESS',
+        });
       }
     } catch (aiError) {
       console.error(`[Post-Upload Worker] AI Analysis failed for ${mediaId}:`, aiError);
       await triggerPusherEvent(`project-${projectId}`, 'asset-updated', {
         mediaId,
         aiStatus: 'FAILED',
-        error: 'AI analysis connection or API error',
+        error: 'AI analysis failed or connection error',
       });
-      // We don't fail the whole job if AI fails, just log it
     }
 
     // 6. Final Notification

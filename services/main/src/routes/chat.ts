@@ -1,4 +1,4 @@
-import { getProjectSummary } from '@/lib/project-context';
+import { getProjectSummary, refreshProjectContext } from '@/lib/project-context';
 import { Skeet } from '@/mastra/agents/orchestrator';
 import { Router } from 'express';
 
@@ -61,6 +61,7 @@ router.post('/', async (req, res) => {
     const messages = [];
 
     // Inject summary on new threads to give agent a starting point
+    await refreshProjectContext(projectId).catch(() => {});
     const projectSummary = await getProjectSummary(projectId).catch(() => '');
     if (projectSummary) {
       messages.push({ role: 'system' as const, content: projectSummary });

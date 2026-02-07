@@ -8,7 +8,7 @@ import React, { useEffect } from 'react';
 type ModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: React.ReactNode;
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -61,7 +61,7 @@ export const Modal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -85,16 +85,20 @@ export const Modal = ({
           >
             {/* Header - Fixed height */}
             {(title || description) && (
-              <div className="flex shrink-0 items-start justify-between border-b border-white/5 p-6">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/5 py-4 px-5">
                 <div>
-                  {title && <h3 className="text-xl font-semibold text-white">{title}</h3>}
-                  {description && <p className="mt-1 text-sm text-neutral-400">{description}</p>}
+                  {title && typeof title === 'string' ? (
+                    <h3 className="text-base font-semibold text-white">{title}</h3>
+                  ) : (
+                    title && title
+                  )}
+                  {description && <p className="mt-1 text-xs text-neutral-400">{description}</p>}
                 </div>
                 <button
                   onClick={onClose}
                   className="rounded-full p-1 text-neutral-400 transition-colors hover:bg-white/5 hover:text-white"
                 >
-                  <Add className="rotate-45" size={24} color="currentColor" />
+                  <Add className="rotate-45" size={20} color="currentColor" />
                 </button>
               </div>
             )}

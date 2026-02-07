@@ -33,7 +33,7 @@ export function MediaGrid({ items, loading }: MediaGridProps) {
     <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 pr-2">
       {items.length === 0 ? (
         <div
-          className="h-full flex flex-col items-center justify-center border-2 border-dashed border-neutral-800 rounded-xl bg-neutral-900/20 text-neutral-500 hover:text-neutral-400 hover:border-neutral-700 hover:bg-neutral-900/40 transition-all duration-300 gap-4"
+          className="h-full min-h-[400px] flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-white/2 hover:bg-white/4 hover:border-white/20 transition-all duration-500 gap-6 p-8 relative overflow-hidden group"
           onDragOver={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -48,22 +48,31 @@ export function MediaGrid({ items, loading }: MediaGridProps) {
             }
           }}
         >
-          <div className="w-20 h-20 rounded-full bg-neutral-800/50 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300">
-            <Import
-              size={40}
-              color="currentColor"
-              variant="Bulk"
-              className="opacity-50 group-hover:opacity-100"
-            />
+          {/* Subtle Background Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white/5 blur-[80px] rounded-full pointer-events-none" />
+
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 shadow-2xl shadow-black">
+              <Import
+                size={34}
+                color="white"
+                variant="Bulk"
+                className="opacity-40 group-hover:opacity-100 transition-opacity duration-500"
+              />
+            </div>
+            {/* Pulsing indicator */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-white/20 rounded-full blur-sm animate-pulse" />
           </div>
-          <div className="text-center space-y-1">
-            <p className="text-lg font-medium text-neutral-300">Drag to upload</p>
-            <p className="text-xs text-neutral-600">Support for Video, Audio and Images</p>
+
+          <div className="text-center space-y-2 relative z-10">
+            <h3 className="text-xl font-semibold text-white tracking-tight">Drag to upload</h3>
+            <p className="text-sm text-white/40 max-w-[200px] mx-auto leading-relaxed">
+              Support for Video, Audio and Images
+            </p>
           </div>
 
           <button
             onClick={() => {
-              // Trigger file input click
               const input = document.createElement('input');
               input.type = 'file';
               input.multiple = true;
@@ -77,10 +86,10 @@ export function MediaGrid({ items, loading }: MediaGridProps) {
               };
               input.click();
             }}
-            className="mt-4 px-6 py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-neutral-200 transition-colors flex items-center gap-2 shadow-lg shadow-white/5"
+            className="group/btn relative mt-2 px-8 py-3 rounded-full bg-white text-black font-bold text-sm hover:bg-neutral-100 transition-all duration-300 flex items-center gap-2 overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95"
           >
-            <Add size={18} color="currentColor" />
-            <span>Upload Files</span>
+            <Add size={18} color="black" className="relative z-10" />
+            <span className="relative z-10">Upload Files</span>
           </button>
         </div>
       ) : (
@@ -121,6 +130,8 @@ export function MediaGrid({ items, loading }: MediaGridProps) {
             thumbnail: f.file.type.startsWith('image/') ? URL.createObjectURL(f.file) : null,
             videoUrl: URL.createObjectURL(f.file),
             duration: 0,
+            s3Key: '',
+            progress: 100,
           }));
           addMedia(newMedia);
           uploadModal.onClose();

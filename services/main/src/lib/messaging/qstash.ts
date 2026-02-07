@@ -31,7 +31,7 @@ class QueueService {
     console.log(`[QStash] Enqueueing ${payloads.length} post-media-upload jobs`);
     await this.client.batchJSON(
       payloads.map((payload) => ({
-        url: `${this.workerBaseUrl}/api/workers/post-media-upload`,
+        url: `${this.workerBaseUrl}/api/workers/media/post-media-upload`,
         body: payload,
         retries: 3,
       })),

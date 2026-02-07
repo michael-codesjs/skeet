@@ -1,16 +1,16 @@
 # skeet
 
-**skeet** is an AI-native post-production agent designed for social media creators who want to transform raw, messy footage into polished stories without ever touching a manual timeline. By leveraging **Gemini 3’s multimodal reasoning**, skeet "watches" your clips, understands your creative intent, and automates the entire editing pipeline.
+**skeet** is an AI-powered Non-Linear Editor (NLE) designed for the modern creator. It transforms raw footage into professional stories through a conversational, multi-agent workflow. Powered by **Gemini 3**, skeet acts as your creative partner—scouting moments, orchestrating sequences, and handling technical assembly so you can focus on the vision.
 
 ---
 
 ## 🚀 Key Features
 
-- **Zero-Timeline Editing**
-  Forget dragging and trimming. Upload your raw iPhone or GoPro dumps and describe the "vibe" you want. Skeet handles the heavy lifting of clip selection, trimming, and rhythmic assembly.
+- **Conversational Sequencing**
+  Move from manual trimming to narrative intent. Describe your vision to the **Skeet Assistant** and watch as it orchestrates your clips into a cohesive sequence on the timeline.
 
-- **Interactive Precision (Prompt-to-Segment)**
-  Maintain total creative control. Select any section of your footage and provide targeted instructions (e.g., _"Make this specific jump slow-motion with a grainy film filter"_).
+- **Intelligent Scouting**
+  Forget scrubbing through hours of noise. The **Scout** identifies hero shots, tags context, and organizes your library semantically, making every moment instantly searchable.
 
 - **Multimodal Director Agent**
   Powered by Gemini 3, the agent "watches" your clips to identify high-quality "hero shots" while filtering out shaky, out-of-focus, or accidental footage.
@@ -39,10 +39,11 @@
 
 ## 🎨 Branding Philosophy
 
-Skeet operates on a **"Zero-Timeline"** philosophy. We move the creative process from manual pixel manipulation to conversational intent. In the Skeet ecosystem:
+Skeet operates on an **"AI-First NLE"** philosophy. We evolve the creative process from manual pixel manipulation to conversational intent. In the Skeet ecosystem:
 
-- We don't "Process"; we **Watch**.
-- We don't "Edit"; we **Scout**.
+- We don't "Process"; we **Scout**.
+- We don't "Edit"; we **Direct**.
+- The Assistant doesn't "Automate"; it **Orchestrates**.
 - You aren't a "User"; you are **The Director**.
 
 ---

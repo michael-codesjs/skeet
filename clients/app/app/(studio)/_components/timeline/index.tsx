@@ -1,14 +1,15 @@
 'use client';
 
 import { useStudioStore } from '@/stores/studio';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Ruler } from './ruler';
 import { TimelineToolbar } from './toolbar';
 import { TrackHeaders } from './track-headers';
 import { Tracks } from './tracks';
 
 export function Timeline() {
-  const [zoom, setZoom] = useState(100); // px per second
+  const zoom = useStudioStore((state) => state.zoom);
+  const setZoom = useStudioStore((state) => state.setZoom);
   const project = useStudioStore((state) => state.project);
   const currentTime = useStudioStore((state) => state.currentTime);
   const setTime = useStudioStore((state) => state.setTime);
@@ -21,18 +22,55 @@ export function Timeline() {
   };
 
   const tracks = useMemo(() => {
-    const otioTracks = project?.otio?.tracks.children || [];
-    otioTracks.forEach((track, i) => {
-      console.log(`[Timeline] Track ${i} (${track.kind}):`, track);
-      track.children?.forEach((clip, j) => {
-        console.log(`  Clip ${j}:`, clip);
-        if (clip.media_reference) {
-          console.log(`    target_url:`, clip.media_reference.target_url);
-        }
-      });
+    const rawTracks = project?.timeline?.tracks || [];
+    const CORE_TRACKS = [
+      { name: 'Main Visuals', kind: 'Video' as const },
+      { name: 'Soundtrack', kind: 'Audio' as const },
+      { name: 'FX & Overlays', kind: 'Video' as const },
+      { name: 'Sound Effects', kind: 'Audio' as const },
+    ];
+
+    // Ensure we always have exactly 4 tracks shown in the UI
+    const finalTracks = CORE_TRACKS.map((core, i) => {
+      const existing = rawTracks[i];
+      if (existing) {
+        return {
+          ...existing,
+          name: core.name, // Force standard names
+          kind: core.kind, // Force standard kinds
+        };
+      }
+      return {
+        ...core,
+        children: [],
+        metadata: {},
+      };
     });
-    return otioTracks;
-  }, [project?.otio]);
+
+    return finalTracks;
+  }, [project?.timeline]);
+
+  const selectedClip = useStudioStore((state) => state.selectedClip);
+  const deleteClip = useStudioStore((state) => state.deleteClip);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedClip) return;
+
+      // Ignore if typing in an input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        deleteClip(selectedClip.trackIndex, selectedClip.itemIndex);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClip, deleteClip]);
 
   const formatTimecode = (pos: number) => {
     const totalSeconds = pos / zoom;

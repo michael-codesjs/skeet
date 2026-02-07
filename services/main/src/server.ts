@@ -52,8 +52,8 @@ export async function createServer() {
   // Chat endpoint (Mastra-triggered)
   app.use('/api/chat', chatRouter);
 
-  // Worker endpoints (QStash-triggered)
-  app.use('/api/workers', mediaWorker);
+  // Worker endpoints (QStash Webhooks)
+  app.use('/api/workers/media', mediaWorker);
 
   return { app, httpServer, server };
 }

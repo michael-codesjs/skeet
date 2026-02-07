@@ -2,11 +2,14 @@
 
 import { CONFIRM_MEDIA_UPLOADS, CREATE_MEDIA } from '@/graphql/mutations/media';
 import { GET_PROJECT_MEDIA } from '@/graphql/queries/projects';
+import { useAssetManager } from '@/hooks/use-asset-manager';
 import { cn } from '@/lib/utils';
 import { useStudioStore, type MediaItem } from '@/stores/studio';
 import { useMutation, useQuery } from '@apollo/client/react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Add, DocumentUpload } from 'iconsax-react';
 import { useCallback, useEffect, useState } from 'react';
+import { EffectsLibrary } from './effects-library';
 import { MediaFilters } from './filters';
 import { MediaGrid } from './grid';
 import { Search } from './search';
@@ -55,23 +58,22 @@ export function Media() {
     activeProjectId,
   } = useStudioStore();
 
+  const { saveAsset } = useAssetManager();
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  // Removed global progress states: uploadProgress, uploadPhase
 
   const { data: mediaData, loading: mediaLoading } = useQuery<ProjectMediaData>(GET_PROJECT_MEDIA, {
     variables: {
       projectId: activeProjectId,
       search: searchQuery,
-      type: filterType,
+      type: filterType === 'effects' ? 'all' : filterType, // Don't filter backend by 'effects'
     },
     skip: !activeProjectId,
     fetchPolicy: 'cache-and-network',
   });
 
-  // Sync Apollo data to store whenever it changes
   useEffect(() => {
     if (mediaData?.project?.media) {
       setMedia(mediaData.project.media);
@@ -144,9 +146,8 @@ export function Media() {
     setIsUploading(true);
 
     try {
-      // 1. Create Media Entries
       const mediaInput = files.map((f) => ({
-        fileName: f.name, // The user-edited name
+        fileName: f.name,
         contentType: f.file.type || 'application/octet-stream',
         size: f.file.size,
       }));
@@ -156,36 +157,33 @@ export function Media() {
           projectId: activeProjectId,
           files: mediaInput,
         },
-        refetchQueries: [
-          {
-            query: GET_PROJECT_MEDIA,
-            variables: { projectId: activeProjectId, search: searchQuery, type: filterType },
-          },
-        ],
       });
 
       if (!createData?.createMedia) {
         throw new Error('Failed to initiate upload');
       }
 
-      const uploadConfigs = createData.createMedia; // [{ id, uploadUrl }]
+      const uploadConfigs = createData.createMedia;
 
-      // 1.5 Add initial placeholders to the grid
       const newMediaItems: MediaItem[] = files.map((f, i) => ({
         id: uploadConfigs[i].id,
         fileName: f.name,
         mimeType: f.file.type,
-        status: 'UPLOADING', // New status we'll handle in Grid
+        status: 'UPLOADING',
         thumbnail: f.file.type.startsWith('image/') ? URL.createObjectURL(f.file) : null,
         videoUrl: null,
+        s3Key: '',
         progress: 0,
       }));
       addMedia(newMediaItems);
 
-      // 2. Upload to S3 with Per-Item Progress
       await Promise.all(
         uploadConfigs.map(async (config: any, index: number) => {
-          await uploadFileToS3(files[index].file, config.uploadUrl, (loaded) => {
+          await saveAsset(config.id, files[index].file).catch((err: any) =>
+            console.error(`[Media] Failed to save ${config.id} to IndexedDB:`, err),
+          );
+
+          await uploadFileToS3(files[index].file, config.url || config.uploadUrl, (loaded) => {
             const percent = Math.round((loaded / files[index].file.size) * 100);
             updateMedia(config.id, { progress: percent });
           });
@@ -193,12 +191,10 @@ export function Media() {
         }),
       );
 
-      // Mark all as processing / 100%
       uploadConfigs.forEach((c) => {
         updateMedia(c.id, { status: 'PROCESSING', progress: 100 });
       });
 
-      // 3. Confirm Uploads
       const { data: confirmData } = await confirmMediaUploads({
         variables: {
           projectId: activeProjectId,
@@ -211,7 +207,6 @@ export function Media() {
       }
     } catch (error) {
       console.error('Upload failed:', error);
-      // Ideally show toast
     } finally {
       setIsUploading(false);
     }
@@ -227,7 +222,7 @@ export function Media() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Header with Upload Button */}
+      {/* Header with Search and Upload */}
       <div className="flex items-center gap-2">
         <Search />
         <div className="relative">
@@ -246,7 +241,34 @@ export function Media() {
 
       <MediaFilters />
 
-      <MediaGrid loading={mediaLoading && filteredMedia.length === 0} items={filteredMedia} />
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {filterType === 'effects' ? (
+            <motion.div
+              key="effects-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="h-full mt-2"
+            >
+              <EffectsLibrary />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="media-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full"
+            >
+              <MediaGrid
+                loading={mediaLoading && filteredMedia.length === 0}
+                items={filteredMedia}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Drag Overlay Hint */}
       {isDragOver && (
