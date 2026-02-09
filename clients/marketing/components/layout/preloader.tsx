@@ -5,18 +5,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 export function Preloader() {
-  const { assetsLoaded, totalAssets, isReady, setReady } = useUIStore();
+  const { assetsLoaded, totalAssets, setReady } = useUIStore();
   const [show, setShow] = useState(true);
-
-  const progress = totalAssets > 0 ? (assetsLoaded / totalAssets) * 100 : 0;
 
   useEffect(() => {
     if (assetsLoaded > 0 && assetsLoaded >= totalAssets) {
-      // Small delay for the "complete" feeling
+      // Keep visible for a moment after loading to feel intentional
       const timer = setTimeout(() => {
         setReady(true);
-        setTimeout(() => setShow(false), 1000); // Fade out duration
-      }, 500);
+        setTimeout(() => setShow(false), 800); // Fade out duration
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [assetsLoaded, totalAssets, setReady]);
@@ -28,41 +26,43 @@ export function Preloader() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
-          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center p-6"
+          className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center pointer-events-none"
         >
-          <div className="w-full max-w-md space-y-8">
-            {/* Logo or Brand Name */}
+          {/* Central Logo and Glow */}
+          <div className="relative">
+            {/* Core Glow effect */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center"
+              animate={{
+                scale: [1, 1.15, 1],
+                opacity: [0.4, 0.7, 0.4],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className="absolute inset-0 -m-8 bg-white/20 blur-[45px] rounded-full"
+            />
+
+            {/* Logo Text */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative z-10"
             >
-              <h2 className="text-4xl font-bold tracking-tighter text-white mb-2">SKEET</h2>
-              <p className="text-neutral-500 text-sm tracking-widest uppercase">
-                Logic Meets Feeling
-              </p>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-[0.3em] text-white">SKEET</h2>
+
+              {/* Subtle underline decoration */}
+              <motion.div
+                animate={{ width: [0, 48, 0], opacity: [0, 0.5, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                className="mt-6 h-px bg-white mx-auto overflow-hidden"
+              />
             </motion.div>
-
-            {/* Progress Container */}
-            <div className="space-y-4">
-              <div className="h-px w-full bg-white/10 relative overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                  className="absolute top-0 left-0 h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-                />
-              </div>
-
-              <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500 uppercase tracking-widest">
-                <span>Initializing Engine</span>
-                <span className="text-white">{Math.round(progress)}%</span>
-              </div>
-            </div>
           </div>
 
-          {/* Background Ambient Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white/5 rounded-full blur-[100px] pointer-events-none" />
+          {/* Deep Ambient Background Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl aspect-square bg-white/[0.03] rounded-full blur-[140px] pointer-events-none" />
         </motion.div>
       )}
     </AnimatePresence>
