@@ -71,7 +71,10 @@ export const extractMetadata = (inputPath: string): Promise<{ duration: number }
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(inputPath, (err, metadata) => {
       if (err) return reject(err);
-      const duration = metadata.format.duration || 0;
+      const rawDuration = metadata.format.duration;
+      const parsedDuration =
+        typeof rawDuration === 'string' ? parseFloat(rawDuration) : rawDuration;
+      const duration = isNaN(parsedDuration as number) ? 0 : (parsedDuration as number);
       resolve({ duration });
     });
   });
