@@ -1,8 +1,33 @@
 'use client';
 
+import { useUIStore } from '@/store/ui';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { useEffect } from 'react';
 
 export function BackgroundAssets() {
+  const { registerAssets, incrementLoaded } = useUIStore();
+
+  const assets = [
+    { src: '/assets/3d/reel.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/scissors.png', className: 'invert mix-blend-screen' },
+    { src: '/assets/3d/camera.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/note.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/transition.png', className: 'mix-blend-screen hue-rotate-180' },
+    { src: '/assets/3d/wand.png', className: 'mix-blend-screen hue-rotate-180' },
+    { src: '/assets/3d/scout.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/clapboard.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/director.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/assembly.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/assembly_alt.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/camera.png', className: 'mix-blend-screen' },
+    { src: '/assets/3d/scissors.png', className: 'mix-blend-screen invert hue-rotate-180' },
+  ];
+
+  useEffect(() => {
+    registerAssets(assets.length);
+  }, []);
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 h-full">
       {/* Scattered 3D Assets - Absolute positioning so they scroll with site */}
@@ -17,10 +42,12 @@ export function BackgroundAssets() {
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[2%] left-[3%] w-64 h-64 opacity-30"
       >
-        <img
+        <Image
           src="/assets/3d/reel.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -33,10 +60,12 @@ export function BackgroundAssets() {
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[9%] left-[4%] w-64 h-64 opacity-30"
       >
-        <img
+        <Image
           src="/assets/3d/scissors.png"
           alt=""
-          className="w-full h-full object-contain invert mix-blend-screen"
+          fill
+          className="object-contain invert mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -48,12 +77,14 @@ export function BackgroundAssets() {
           rotate: [0, -12, 0],
         }}
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-[1%] right-[5%] w72 h-72 opacity-25"
+        className="absolute top-[1%] right-[5%] w-72 h-72 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/camera.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -66,10 +97,12 @@ export function BackgroundAssets() {
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[8%] right-[10%] w-64 h-64 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/note.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -83,10 +116,12 @@ export function BackgroundAssets() {
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[16%] right-[3%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/transition.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen hue-rotate-180"
+          fill
+          className="object-contain mix-blend-screen hue-rotate-180"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -99,10 +134,12 @@ export function BackgroundAssets() {
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[20%] left-[3%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/wand.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen hue-rotate-180"
+          fill
+          className="object-contain mix-blend-screen hue-rotate-180"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -114,10 +151,12 @@ export function BackgroundAssets() {
         transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[31%] left-[14%] w-64 h-64 opacity-20"
       >
-        <img
+        <Image
           src="/assets/3d/scout.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -131,10 +170,12 @@ export function BackgroundAssets() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[36%] right-[10%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/clapboard.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -148,10 +189,12 @@ export function BackgroundAssets() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[40%] left-[10%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/director.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -165,14 +208,16 @@ export function BackgroundAssets() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[46%] right-[10%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/assembly.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
-      {/* 10. Assembly - Floating Left */}
+      {/* 11. Assembly Alt - Floating Left */}
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -182,14 +227,16 @@ export function BackgroundAssets() {
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[50%] left-[10%] w-62 h-62 opacity-25"
       >
-        <img
+        <Image
           src="/assets/3d/assembly_alt.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
-      {/* 7. Another Camera - Far Bottom Left */}
+      {/* 12. Another Camera - Far Bottom Left */}
       <motion.div
         animate={{
           y: [0, -20, 0],
@@ -198,14 +245,16 @@ export function BackgroundAssets() {
         transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[88%] left-[12%] w-52 h-52 opacity-20 blur-sm"
       >
-        <img
+        <Image
           src="/assets/3d/camera.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen"
+          fill
+          className="object-contain mix-blend-screen"
+          onLoad={incrementLoaded}
         />
       </motion.div>
 
-      {/* 10. Extra Scissors - Far Bottom Right */}
+      {/* 13. Extra Scissors - Far Bottom Right */}
       <motion.div
         animate={{
           y: [0, 25, 0],
@@ -214,10 +263,12 @@ export function BackgroundAssets() {
         transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[92%] right-[8%] w-48 h-48 opacity-15 blur-md"
       >
-        <img
+        <Image
           src="/assets/3d/scissors.png"
           alt=""
-          className="w-full h-full object-contain mix-blend-screen invert hue-rotate-180"
+          fill
+          className="object-contain mix-blend-screen invert hue-rotate-180"
+          onLoad={incrementLoaded}
         />
       </motion.div>
     </div>

@@ -7,14 +7,18 @@ import Image from 'next/image';
 import { HeroFilter } from './_components/hero-filter';
 
 import { useAuthStore } from '@/store/auth';
+import { useUIStore } from '@/store/ui';
 import { useEffect } from 'react';
 
 export default function Home() {
   const { session, fetchSession } = useAuthStore();
+  const { registerAssets, incrementLoaded } = useUIStore();
 
   useEffect(() => {
     fetchSession();
-  }, [fetchSession]);
+    // Register the studio image
+    registerAssets(1);
+  }, [fetchSession, registerAssets]);
 
   return (
     <div className="flex flex-col min-h-screen bg-black overflow-x-hidden selection:bg-white/20">
@@ -22,8 +26,6 @@ export default function Home() {
       <div className="fixed inset-0 -z-20 bg-black" />
       <div className="fixed inset-0 -z-10 bg-grid-pattern opacity-40 pointer-events-none" />
       <div className="fixed top-[-20%] left-[10%] w-[80%] h-[80%] hero-glow rounded-full opacity-40 mix-blend-screen pointer-events-none animate-float" />
-
-      {/* Additional ambient glow for depth */}
 
       {/* Hero Section */}
       <section className="relative px-6 pt-12 pb-20 flex flex-col items-center text-center max-w-7xl mx-auto z-10">
@@ -113,12 +115,13 @@ export default function Home() {
               fill
               className="object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
               priority
+              onLoad={incrementLoaded}
             />
           </div>
         </motion.div>
       </section>
 
-      {/* Manifesto Section - derived from branding.md */}
+      {/* Manifesto Section */}
       <section className="relative px-6 py-32 max-w-7xl mx-auto w-full z-10">
         <div className="mb-24 text-center">
           <motion.div
@@ -145,7 +148,6 @@ export default function Home() {
           {/* Central Vertical Track connecting the story */}
           <div className="absolute left-1/2 top-8 bottom-8 w-0.5 -translate-x-1/2 bg-white/10 hidden md:block" />
 
-          {/* 1. The Scout */}
           {/* 1. The Scout */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -174,7 +176,7 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* 2. The Director */}
+          {/* 2. The Assistant */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
