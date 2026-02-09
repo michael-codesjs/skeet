@@ -47,8 +47,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   launchDemo: async () => {
     const { session, signIn } = get();
+    const demoProjectId = 'cmlfqkz6j00011sfng9vp517c';
+    const appUrl = process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/';
+    const redirectUrl = `${appUrl}${appUrl.endsWith('/') ? '' : '/'}?project=${demoProjectId}`;
+
     if (session) {
-      window.location.href = process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/';
+      window.location.href = redirectUrl;
       return;
     }
 
@@ -58,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const password = 'football';
       const { error } = await signIn({ email, password });
       if (!error) {
-        window.location.href = process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/';
+        window.location.href = redirectUrl;
       }
     } catch (err) {
       console.error('Launch failed:', err);

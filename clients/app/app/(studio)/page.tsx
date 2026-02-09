@@ -7,6 +7,7 @@ import { useProjectUpdates } from '@/hooks/use-project-updates';
 import { cn } from '@/lib/utils';
 import { useStudioStore } from '@/stores/studio';
 import { useQuery } from '@apollo/client/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { DirectorChat } from './_components/chat';
 import { CreateProject } from './_components/create-project';
@@ -23,13 +24,32 @@ export default function ProjectStudioPage() {
   const setProjects = useStudioStore((state) => state.setProjects);
   const updateMedia = useStudioStore((state) => state.updateMedia);
   const project = useStudioStore((state) => state.project);
+  const setActiveProjectId = useStudioStore((state) => state.setActiveProjectId);
   const activeProjectId = useStudioStore((state) => state.activeProjectId);
   const projects = useStudioStore((state) => state.projects);
   const isCreatingProject = useStudioStore((state) => state.isCreatingProject);
   const setIsCreatingProject = useStudioStore((state) => state.setIsCreatingProject);
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const { checkAssets, syncAssets, isSyncing, progress } = useAssetManager();
   const [missingAssets, setMissingAssets] = useState<AssetStatus[]>([]);
+
+  // Handle direct project navigation via URL
+  useEffect(() => {
+    const projectFromUrl = searchParams.get('project');
+    if (projectFromUrl && projectFromUrl !== activeProjectId) {
+      console.log('[Studio] Selecting project from URL:', projectFromUrl);
+      setActiveProjectId(projectFromUrl);
+
+      // Clean up the URL
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete('project');
+      const queryString = newParams.toString();
+      router.replace(queryString ? `?${queryString}` : window.location.pathname);
+    }
+  }, [searchParams, activeProjectId, setActiveProjectId, router]);
   const [mounted, setMounted] = useState(false);
 
   const { success, error: toastError } = useToast();
