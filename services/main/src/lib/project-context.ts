@@ -29,12 +29,10 @@ export async function getProjectSummary(projectId: string): Promise<string> {
 
   // Get timeline from Redis cache (or DB fallback)
   const timeline = await getTimeline(projectId);
-  const trackCount = timeline?.tracks?.children?.length || 0;
+  const trackCount = timeline?.tracks?.length || 0;
   const clipCount =
-    timeline?.tracks?.children?.reduce(
-      (acc: number, track: any) => acc + (track.children?.length || 0),
-      0,
-    ) || 0;
+    timeline?.tracks?.reduce((acc: number, track: any) => acc + (track.children?.length || 0), 0) ||
+    0;
 
   const summary = `Project ID: ${project.id} | Project: "${project.title || 'Untitled'}" | Description: "${project.description || 'No description'}" | Assets: ${project.media.length} | Timeline: ${trackCount} tracks, ${clipCount} clips. Use getProjectManifest if details seem outdated.`;
   await redis.set(cacheKey, summary, { ex: CONTEXT_TTL });
@@ -75,12 +73,10 @@ async function buildAndCacheContext(projectId: string): Promise<string> {
   const contextString = await formatContextForLLM(project);
   // Get timeline from Redis cache (or DB fallback)
   const timeline = await getTimeline(projectId);
-  const trackCount = timeline?.tracks?.children?.length || 0;
+  const trackCount = timeline?.tracks?.length || 0;
   const clipCount =
-    timeline?.tracks?.children?.reduce(
-      (acc: number, track: any) => acc + (track.children?.length || 0),
-      0,
-    ) || 0;
+    timeline?.tracks?.reduce((acc: number, track: any) => acc + (track.children?.length || 0), 0) ||
+    0;
 
   const summary = `Project: "${project.title || 'Untitled'}" | Description: "${project.description || 'No description'}" | Assets: ${(project as any).media?.length || 0} | Timeline: ${trackCount} tracks, ${clipCount} clips. Use getProjectManifest if details seem outdated.`;
 
@@ -108,7 +104,7 @@ async function formatContextForLLM(project: any): Promise<string> {
 
   // Get timeline for detailed track info
   const timeline = await getTimeline(project.id);
-  const tracksSummary = (timeline?.tracks?.children || [])
+  const tracksSummary = (timeline?.tracks || [])
     .map((track: any, i: number) => {
       const clips = (track.children || [])
         .map((clip: any) => {
