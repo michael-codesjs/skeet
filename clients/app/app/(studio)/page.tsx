@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useStudioStore } from '@/stores/studio';
 import { useQuery } from '@apollo/client/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { DirectorChat } from './_components/chat';
 import { CreateProject } from './_components/create-project';
 import { ExportView } from './_components/export-view';
@@ -19,7 +19,7 @@ import { ProgramMonitor } from './_components/program-monitor';
 import { StudioSkeleton } from './_components/skeleton';
 import { Timeline } from './_components/timeline';
 
-export default function ProjectStudioPage() {
+function ProjectStudioContent() {
   const setProject = useStudioStore((state) => state.setProject);
   const setProjects = useStudioStore((state) => state.setProjects);
   const updateMedia = useStudioStore((state) => state.updateMedia);
@@ -194,5 +194,13 @@ export default function ProjectStudioPage() {
         <CreateProject onClose={() => setIsCreatingProject(false)} />
       )}
     </div>
+  );
+}
+
+export default function ProjectStudioPage() {
+  return (
+    <Suspense fallback={<StudioSkeleton />}>
+      <ProjectStudioContent />
+    </Suspense>
   );
 }
