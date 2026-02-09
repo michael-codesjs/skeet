@@ -75,13 +75,8 @@ export const useAssetManager = () => {
           }
 
           try {
-            // Append a small cache-buster to avoid CORS cache pollution
-            // from previous non-CORS <img src="..."> requests
-            const syncUrl = new URL(asset.url);
-            syncUrl.searchParams.append('s-sync', Date.now().toString());
-
-            console.log(`[AssetManager] Syncing asset ${asset.mediaId} from ${syncUrl.toString()}`);
-            const resp = await fetch(syncUrl.toString(), {
+            console.log(`[AssetManager] Syncing asset ${asset.mediaId} from ${asset.url}`);
+            const resp = await fetch(asset.url, {
               // Note: We don't use 'force-cache' here to ensure we get a fresh CORS-enabled response
               // but we let the browser manage internal caching if it wants.
             });
