@@ -10,7 +10,7 @@ import { useAuthStore } from '@/store/auth';
 import { useEffect } from 'react';
 
 export default function Home() {
-  const { session, fetchSession } = useAuthStore();
+  const { session, fetchSession, launchDemo, isLoading } = useAuthStore();
 
   useEffect(() => {
     fetchSession();
@@ -57,33 +57,19 @@ export default function Home() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center gap-6"
         >
-          {session ? (
-            <a href={process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/'}>
-              <Button
-                size="lg"
-                className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
-              >
-                Launch Skeet
-                <ArrowRight
-                  size={20}
-                  color="currentColor"
-                  className="ml-2 group-hover:translate-x-1 transition-transform"
-                />
-              </Button>
-            </a>
-          ) : (
-            <Button
-              size="lg"
-              className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
-            >
-              Get Early Access
-              <ArrowRight
-                size={20}
-                color="currentColor"
-                className="ml-2 group-hover:translate-x-1 transition-transform"
-              />
-            </Button>
-          )}
+          <Button
+            onClick={launchDemo}
+            disabled={isLoading}
+            size="lg"
+            className="group h-16 px-10 text-lg rounded-full hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all duration-300"
+          >
+            {isLoading ? 'Preparing Demo...' : 'Launch Skeet'}
+            <ArrowRight
+              size={20}
+              color="currentColor"
+              className="ml-2 group-hover:translate-x-1 transition-transform"
+            />
+          </Button>
 
           <Button
             variant="outline"

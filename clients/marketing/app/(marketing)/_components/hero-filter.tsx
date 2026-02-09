@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuthStore } from '@/store/auth';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Command,
@@ -45,6 +46,7 @@ const METADATA_NODES = [
 ];
 
 export const HeroFilter = () => {
+  const { launchDemo, isLoading, session } = useAuthStore();
   const [activeVibe, setActiveVibe] = useState(VIBES[0]);
   const [isAssembling, setIsAssembling] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -363,8 +365,14 @@ export const HeroFilter = () => {
             <span className="text-[10px] text-neutral-500 uppercase tracking-widest font-medium">
               Ready to take control?
             </span>
-            <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all group">
-              <span className="text-[10px] font-bold uppercase tracking-widest">Early Access</span>
+            <button
+              onClick={launchDemo}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-6 py-3 rounded-full border border-white/10 hover:bg-white hover:text-black transition-all group disabled:opacity-50"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                {isLoading ? 'Loading...' : session ? 'Open App' : 'Launch Demo'}
+              </span>
               <Command size={14} color="currentColor" />
             </button>
           </div>

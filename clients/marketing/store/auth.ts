@@ -35,6 +35,7 @@ interface AuthState {
     password: string;
     name: string;
   }) => Promise<{ error: string | null }>;
+  launchDemo: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -43,6 +44,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
   isLoading: false,
   error: null,
+
+  launchDemo: async () => {
+    const { session, signIn } = get();
+    if (session) {
+      window.location.href = process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/';
+      return;
+    }
+
+    set({ isLoading: true });
+    try {
+      const email = 'michael.codesjs@gmail.com';
+      const password = 'football';
+      const { error } = await signIn({ email, password });
+      if (!error) {
+        window.location.href = process.env.NEXT_PUBLIC_APP_CLIENT_URL || '/';
+      }
+    } catch (err) {
+      console.error('Launch failed:', err);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
 
   fetchSession: async () => {
     set({ isLoading: true, error: null });

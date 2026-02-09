@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 
 export function Navbar() {
   const pathname = usePathname();
-  const { session, fetchSession } = useAuthStore();
+  const { session, fetchSession, launchDemo, isLoading } = useAuthStore();
 
   useEffect(() => {
     fetchSession();
@@ -56,16 +56,9 @@ export function Navbar() {
             </a>
           ) : (
             <>
-              <Link href="/sign-in">
-                <Button variant="secondary" size="sm">
-                  Log In
-                </Button>
-              </Link>
-              <Link href="/sign-up">
-                <Button variant="primary" size="sm">
-                  Get Started
-                </Button>
-              </Link>
+              <Button onClick={launchDemo} disabled={isLoading} variant="primary" size="sm">
+                Get Started
+              </Button>
             </>
           )}
         </div>
