@@ -1,33 +1,9 @@
 'use client';
 
-import { useUIStore } from '@/store/ui';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { useEffect } from 'react';
 
 export function BackgroundAssets() {
-  const { registerAssets, incrementLoaded } = useUIStore();
-
-  const assets = [
-    { src: '/assets/3d/reel.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/scissors.png', className: 'invert mix-blend-screen' },
-    { src: '/assets/3d/camera.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/note.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/transition.png', className: 'mix-blend-screen hue-rotate-180' },
-    { src: '/assets/3d/wand.png', className: 'mix-blend-screen hue-rotate-180' },
-    { src: '/assets/3d/scout.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/clapboard.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/director.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/assembly.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/assembly_alt.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/camera.png', className: 'mix-blend-screen' },
-    { src: '/assets/3d/scissors.png', className: 'mix-blend-screen invert hue-rotate-180' },
-  ];
-
-  useEffect(() => {
-    registerAssets(assets.length);
-  }, []);
-
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 h-full">
       {/* Scattered 3D Assets - Absolute positioning so they scroll with site */}
@@ -42,13 +18,7 @@ export function BackgroundAssets() {
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[2%] left-[3%] w-64 h-64 opacity-30"
       >
-        <Image
-          src="/assets/3d/reel.png"
-          alt=""
-          fill
-          className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
-        />
+        <Image src="/assets/3d/reel.png" alt="" fill className="object-contain mix-blend-screen" />
       </motion.div>
 
       {/* 2. Note - Top Left 2 */}
@@ -65,7 +35,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain invert mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -84,7 +53,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -97,13 +65,7 @@ export function BackgroundAssets() {
         transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[8%] right-[10%] w-64 h-64 opacity-25"
       >
-        <Image
-          src="/assets/3d/note.png"
-          alt=""
-          fill
-          className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
-        />
+        <Image src="/assets/3d/note.png" alt="" fill className="object-contain mix-blend-screen" />
       </motion.div>
 
       {/* 5. Transition - Mid Right */}
@@ -121,7 +83,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen hue-rotate-180"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -139,7 +100,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen hue-rotate-180"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -151,13 +111,7 @@ export function BackgroundAssets() {
         transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
         className="absolute top-[31%] left-[14%] w-64 h-64 opacity-20"
       >
-        <Image
-          src="/assets/3d/scout.png"
-          alt=""
-          fill
-          className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
-        />
+        <Image src="/assets/3d/scout.png" alt="" fill className="object-contain mix-blend-screen" />
       </motion.div>
 
       {/* 8. Clapboard - Floating Left */}
@@ -175,7 +129,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -194,7 +147,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -213,7 +165,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -232,7 +183,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -250,7 +200,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen"
-          onLoad={incrementLoaded}
         />
       </motion.div>
 
@@ -268,7 +217,6 @@ export function BackgroundAssets() {
           alt=""
           fill
           className="object-contain mix-blend-screen invert hue-rotate-180"
-          onLoad={incrementLoaded}
         />
       </motion.div>
     </div>

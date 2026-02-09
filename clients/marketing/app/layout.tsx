@@ -24,7 +24,6 @@ export const metadata: Metadata = {
 };
 
 import { BackgroundAssets } from '@/components/layout/background-assets';
-import { Preloader } from '@/components/layout/preloader';
 
 export default function RootLayout({
   children,
@@ -36,7 +35,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${plusJakarta.variable} antialiased selection:bg-white/20 selection:text-white bg-black text-white relative font-sans`}
       >
-        <Preloader />
         <BackgroundAssets />
         {children}
       </body>

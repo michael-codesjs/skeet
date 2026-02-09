@@ -7,18 +7,14 @@ import Image from 'next/image';
 import { HeroFilter } from './_components/hero-filter';
 
 import { useAuthStore } from '@/store/auth';
-import { useUIStore } from '@/store/ui';
 import { useEffect } from 'react';
 
 export default function Home() {
   const { session, fetchSession } = useAuthStore();
-  const { registerAssets, incrementLoaded } = useUIStore();
 
   useEffect(() => {
     fetchSession();
-    // Register the studio image
-    registerAssets(1);
-  }, [fetchSession, registerAssets]);
+  }, [fetchSession]);
 
   return (
     <div className="flex flex-col min-h-screen bg-black overflow-x-hidden selection:bg-white/20">
@@ -115,7 +111,6 @@ export default function Home() {
               fill
               className="object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-700"
               priority
-              onLoad={incrementLoaded}
             />
           </div>
         </motion.div>
