@@ -24,7 +24,7 @@ export const createTools = (projectId: string) => {
         'Returns a complete list of all available media assets in the project, including their IDs, filenames, and summaries. Use this to get an overview of what "ingredients" you have to work with.',
       inputSchema: z.object({}),
       execute: async () => {
-        console.log(`[Tool] 📂 Fetching project manifest for: ${projectId}`);
+        // console.log(`[Tool] 📂 Fetching project manifest for: ${projectId}`);
         const prisma = getPrisma();
         const media = await prisma.media.findMany({
           where: { projectId },
@@ -51,7 +51,7 @@ export const createTools = (projectId: string) => {
           .describe('The search query (e.g. "beach at sunset", "close up of face").'),
       }),
       execute: async ({ query }) => {
-        console.log(`[Tool] 🔍 Searching segments for query: ${query}`);
+        // console.log(`[Tool] 🔍 Searching segments for query: ${query}`);
 
         try {
           // 1. Generate Embedding for query
@@ -70,7 +70,7 @@ export const createTools = (projectId: string) => {
             },
           });
 
-          console.log(`[Tool] ✅ Found ${results?.length || 0} matching segments.`);
+          // console.log(`[Tool] ✅ Found ${results?.length || 0} matching segments.`);
 
           if (!results || results.length === 0) {
             return [];
@@ -100,59 +100,55 @@ export const createTools = (projectId: string) => {
       },
     }),
 
-    getAvailableEffects: createTool({
-      id: 'getAvailableEffects',
+    getCreativeLibrary: createTool({
+      id: 'getCreativeLibrary',
       description:
-        'Returns the list of available cinematic effects and visual filters that can be applied to the timeline via the "EFFECT" operation.',
+        'Returns the creative palette of Skeet: Visual filters, cinematic presets, and transition types.',
       inputSchema: z.object({}),
       execute: async () => {
-        console.log(`[Tool] ✨ Fetching library of cinematic effects...`);
+        // console.log(`[Tool] 🎨 Fetching creative library...`);
         const standardParams = {
           easeIn: 'Duration in ms (e.g. 500)',
           easeOut: 'Duration in ms (e.g. 1000)',
         };
 
-        return [
-          {
-            name: 'Grayscale',
-            description: 'Converts video to black and white for a classic or moody look.',
-            parameters: { ...standardParams },
-          },
-          {
-            name: 'Sepia',
-            description: 'Applies a warm, reddish-brown tone for a vintage or nostalgic feel.',
-            parameters: { ...standardParams },
-          },
-          {
-            name: 'Blur',
-            description: 'Softens the image. Useful for backgrounds or transitions.',
-            parameters: {
-              intensity: 'Number (1-10)',
-              ...standardParams,
+        return {
+          filters: [
+            { name: 'Grayscale', vibe: 'Classic/Noir', params: { ...standardParams } },
+            { name: 'Sepia', vibe: 'Vintage/Nostalgic', params: { ...standardParams } },
+            {
+              name: 'Blur',
+              vibe: 'Dreamy/Soft Focus',
+              params: { intensity: '1-10', ...standardParams },
             },
-          },
-          {
-            name: 'Glitch',
-            description: 'Adds digital artifacts and timing errors for an edgy, tech-focused vibe.',
-            parameters: { ...standardParams },
-          },
-          {
-            name: 'Pixelate',
-            description: 'Reduces resolution for a retro 8-bit or censored look.',
-            parameters: {
-              size: 'Number (2-20)',
-              ...standardParams,
+            { name: 'Glitch', vibe: 'Tech/Chaotic/Action', params: { ...standardParams } },
+            {
+              name: 'Pixelate',
+              vibe: 'Retro/Censored',
+              params: { size: '2-20', ...standardParams },
             },
-          },
-          {
-            name: 'Zoom',
-            description: 'Dynamic camera push-in or pull-out.',
-            parameters: {
-              level: 'Scale factor (1.0 to 2.0)',
-              ...standardParams,
+            {
+              name: 'Zoom',
+              vibe: 'Dynamic/Emphasis',
+              params: { level: '1.0-2.0', ...standardParams },
             },
-          },
-        ];
+          ],
+          vibePresets: [
+            {
+              name: 'The Cinematic Punch',
+              recipe:
+                'Fast cuts (200-400ms) on T0 + Glitch effects on transitions + Bass impacts on T3.',
+            },
+            {
+              name: 'Drift & Flow',
+              recipe: 'Long 3-5s clips on T0 + Cross-dissolves + Ambient pads on T1.',
+            },
+            {
+              name: 'The Narrative Hook',
+              recipe: 'Close-ups from Scout on T0 + Voiceover on T1 + Text overlays on T2.',
+            },
+          ],
+        };
       },
     }),
 
@@ -181,7 +177,7 @@ export const createTools = (projectId: string) => {
           ),
       }),
       execute: async ({ focusStartMs, focusEndMs, trackId, sampleRateMs }) => {
-        console.log(`[Tool] 📺 Fetching timeline for project: ${projectId}`);
+        // console.log(`[Tool] 📺 Fetching timeline for project: ${projectId}`);
         const prisma = getPrisma();
 
         const project = await prisma.project.findUnique({
@@ -294,17 +290,24 @@ export const createTools = (projectId: string) => {
 
         // Vertical Composition Analysis
         const verticalStack: any[] = [];
-        const intervalMs = sampleRateMs || 1000;
+        const intervalMs = sampleRateMs || 2000; // Default to 2s for a broader overview
 
-        // Cap samples at 100 to handle up to 100s at 1s intervals
-        const maxSamples = 100;
+        // Increase sample count for better creative overview
+        const maxSamples = 50;
         let sampleCount = 0;
 
         for (let t = startWindow; t < endWindow && sampleCount < maxSamples; t += intervalMs) {
           const layers = semanticTracks
             .map((track: any) => {
               const active = track.segments.find((s: any) => t >= s.start && t < s.end);
-              return active ? { track: track.trackName, type: active.type, id: active.id } : null;
+              return active
+                ? {
+                    track: track.trackName,
+                    type: active.type,
+                    id: active.id,
+                    mediaId: active.mediaId,
+                  }
+                : null;
             })
             .filter(Boolean);
 
@@ -323,7 +326,7 @@ export const createTools = (projectId: string) => {
           totalDurationMs,
           viewWindow: { start: startWindow, end: endWindow },
           tracks: semanticTracks,
-          verticalStack: verticalStack.slice(0, 20),
+          verticalStack, // Return all collected samples
         };
       },
     }),
@@ -345,78 +348,138 @@ export const createTools = (projectId: string) => {
       },
     }),
 
+    clearTimeline: createTool({
+      id: 'clearTimeline',
+      description: 'DANGEROUS: Wipes all clips from all tracks. Use only if explicitly requested.',
+      inputSchema: z.object({
+        confirm: z.boolean().describe('Must be true to proceed.'),
+      }),
+      execute: async ({ confirm }) => {
+        if (!confirm) return { status: 'error', message: 'Not confirmed.' };
+        const timeline = {
+          name: 'tracks',
+          tracks: [
+            { name: 'Main Visuals', kind: 'Video', children: [], metadata: {} },
+            { name: 'Soundtrack', kind: 'Audio', children: [], metadata: {} },
+            { name: 'FX & Overlays', kind: 'Video', children: [], metadata: {} },
+            { name: 'Sound Effects', kind: 'Audio', children: [], metadata: {} },
+          ],
+          metadata: { lastCleared: new Date().toISOString() },
+        };
+        await saveTimeline(projectId, timeline as any);
+        await triggerPusherEvent(`project-${projectId}`, 'project-updated', {
+          projectId,
+          timeline,
+          editSummary: { title: 'Clear Timeline', reasoning: 'User requested reset' },
+        });
+        return { status: 'success', message: 'Timeline cleared.' };
+      },
+    }),
+
     applyEditOperations: createTool({
       id: 'applyEditOperations',
       description:
-        'Applies a sequence of edit operations to the project timeline. THE PROJECT HAS A FIXED 4-TRACK ARCHITECTURE: Track 0 (Visuals), Track 1 (Soundtrack), Track 2 (FX/Overlays), Track 3 (Sound Effects).',
+        'Surgical tool for modifying (UPDATE), trimming (TRIM), or deleting (DELETE) clips.',
       inputSchema: z.object({
-        title: z.string().describe('Descriptive title for the edit.'),
         reasoning: z.string().describe('Creative rationale.'),
         operations: z.array(
           z.object({
-            type: z.enum([
-              'APPEND',
-              'INSERT',
-              'OVERLAY',
-              'TRIM',
-              'EFFECT',
-              'DELETE',
-              'EMPTY_TRACK',
-              'UPDATE',
-            ]),
+            type: z.enum(['INSERT', 'OVERLAY', 'UPDATE', 'TRIM', 'EFFECT', 'DELETE', 'RIPPLE']),
             id: z
               .string()
               .optional()
-              .describe('Unique ID of the clip to update/delete (surgical).'),
-            mediaId: z.string().optional().describe('The media ID (required for CLIP operations).'),
+              .describe('Target clip unique ID (Required for UPDATE/DELETE/TRIM).'),
+            mediaId: z
+              .string()
+              .optional()
+              .describe('Media asset ID (Required for INSERT/OVERLAY).'),
             trackId: z
               .number()
               .min(0)
               .max(3)
-              .default(0)
-              .describe('T0: Visuals | T1: Soundtrack | T2: FX/Overlays | T3: SFX. ONLY use 0-3.'),
-            sourceStart: z.number().optional().describe('Point in source video (ms). Default 0.'),
-            duration: z.number().optional().describe('Duration of segment/effect (ms).'),
-            start: z.number().optional().describe('Target point on timeline (ms).'),
-            effectType: z
-              .enum(['Grayscale', 'Blur', 'Sepia', 'Glitch', 'Pixelate', 'Zoom'])
-              .optional()
-              .describe('Type of visual effect to apply.'),
-            parameters: z
-              .record(z.string(), z.any())
               .optional()
               .describe(
-                'Effect or Clip parameters. For audio clips, use "volume" (0.0 to 1.0), "fadeIn" (ms), and "fadeOut" (ms) for blending.',
+                'Track index: 0=Visuals, 1=Audio, 2=Overlays, 3=SFX. Required for INSERT/OVERLAY/RIPPLE. Optional for UPDATE (will search all tracks if omitted).',
               ),
-            kind: z.enum(['Video', 'Audio']).optional().describe('Kind of track to add.'),
+            start: z
+              .number()
+              .optional()
+              .describe('Timeline position in ms (where the clip sits on the timeline).'),
+            duration: z
+              .number()
+              .optional()
+              .describe('How long the clip plays on the timeline (ms).'),
+            sourceStart: z
+              .number()
+              .optional()
+              .describe(
+                'Offset into the source media file (ms). E.g., sourceStart=2000 means start playing from 2 seconds into the original video.',
+              ),
+            fromTime: z
+              .number()
+              .optional()
+              .describe('For RIPPLE: Start shifting clips from this timeline position (ms).'),
+            delta: z
+              .number()
+              .optional()
+              .describe(
+                'For RIPPLE: Amount to shift clips (ms). Positive shifts right (later), negative shifts left (earlier).',
+              ),
+            effectType: z
+              .enum(['Grayscale', 'Blur', 'Sepia', 'Glitch', 'Pixelate', 'Zoom'])
+              .optional(),
+            parameters: z.record(z.string(), z.any()).optional(),
           }),
         ),
       }),
-      execute: async ({ title, reasoning, operations }) => {
+      execute: async ({ reasoning, operations }) => {
         try {
-          console.log(`[Tool] 🎬 Applying ${operations.length} operations for ${projectId}`);
+          console.log(`[Tool] 🎬 applyEditOperations called with reasoning: "${reasoning}"`);
+          console.log(`[Tool] 📋 Operations:`, JSON.stringify(operations, null, 2));
 
-          let currentTimeline = await getTimeline(projectId);
-          if (!currentTimeline) {
-            currentTimeline = {
-              name: 'tracks',
-              tracks: [],
-              metadata: { createdAt: new Date().toISOString() },
+          const currentTimeline = (await getTimeline(projectId)) || {
+            name: 'tracks',
+            tracks: [],
+            metadata: { createdAt: new Date().toISOString() },
+          };
+
+          // console.log(`[Tool] 📊 Current timeline has ${currentTimeline.tracks.length} tracks`);
+          // currentTimeline.tracks.forEach((track, idx) => {
+          //   console.log(`  Track ${idx}: ${track.children.length} clips`);
+          // });
+
+          const { timeline, warnings } = await applyOperationsToTimeline(
+            currentTimeline,
+            operations as any,
+          );
+          await saveTimeline(projectId, timeline);
+
+          // console.log(`[Tool] ✅ Timeline updated successfully`);
+          // timeline.tracks.forEach((track, idx) => {
+          //   console.log(`  Track ${idx}: ${track.children.length} clips (after)`);
+          // });
+
+          await triggerPusherEvent(`project-${projectId}`, 'project-updated', {
+            projectId,
+            timeline,
+            editSummary: { title: 'Surgical Edit', reasoning },
+          });
+
+          if (warnings.length > 0) {
+            return {
+              status: 'error',
+              message:
+                `❌ ${warnings.length} operation(s) FAILED due to collisions:\n\n` +
+                warnings.join('\n') +
+                `\n\n🔧 FIX: Use RIPPLE operation to make room BEFORE inserting clips.\n` +
+                `Example: { type: "RIPPLE", trackId: 0, fromTime: 20500, delta: 10140 }`,
+              warnings,
             };
           }
 
-          const timeline = await applyOperationsToTimeline(currentTimeline, operations as any);
-          await saveTimeline(projectId, timeline);
-
-          await triggerPusherEvent(`project-${projectId}`, 'project-updated', {
-            projectId: projectId,
-            timeline: timeline,
-            editSummary: { title, reasoning },
-          });
-
-          return { status: 'success', appliedTitle: title };
+          return { status: 'success' };
         } catch (err: any) {
-          console.error(`[Tool] ❌ applyEditOperations Error:`, err);
+          console.error(`[Tool] ❌ applyEditOperations error:`, err);
           return { status: 'error', message: err.message };
         }
       },

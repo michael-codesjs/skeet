@@ -16,5 +16,5 @@ export const mediaAnalyzer = new Agent({
       },
     },
   },
-  model: 'google/gemini-3-pro-preview',
+  model: 'google/gemini-3-flash-preview',
 });

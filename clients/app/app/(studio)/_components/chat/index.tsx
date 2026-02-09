@@ -1,19 +1,12 @@
 'use client';
 import { MessageStep, useStudioStore } from '@/stores/studio';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown2, Danger, Magicpen, TickCircle } from 'iconsax-react';
+import { ArrowDown2, Danger, Magicpen } from 'iconsax-react';
 import { useEffect, useRef, useState } from 'react';
 import { ChatEmptyState } from './empty-state';
 import { ChatHeader } from './header';
 import { ChatInput } from './input';
-import {
-  CompassIcon,
-  EditorIcon,
-  MemoryIcon,
-  ProjectIcon,
-  ScissorIcon,
-  TimelineIcon,
-} from './tool-icons';
+import { MemoryIcon, ProjectIcon, ScissorIcon, SearchIcon, TimelineIcon } from './tool-icons';
 
 const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) => {
   const isRunning = step.status === 'running';
@@ -24,17 +17,10 @@ const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) =>
     // Restore green color for completed, red for error, dimmed for working
     const colorClass = isError ? 'text-red-500' : isDone ? 'text-green-500' : 'text-white/40';
 
-    if (step.toolName === 'editor') {
+    if (step.toolName === 'searchSegments') {
       return (
         <div className={colorClass}>
-          <ScissorIcon active={isRunning} />
-        </div>
-      );
-    }
-    if (step.toolName === 'scout') {
-      return (
-        <div className={colorClass}>
-          <CompassIcon active={isRunning} />
+          <SearchIcon active={isRunning} />
         </div>
       );
     }
@@ -62,7 +48,7 @@ const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) =>
     if (step.toolName === 'applyEditOperations') {
       return (
         <div className={colorClass}>
-          <EditorIcon active={isRunning} />
+          <ScissorIcon active={isRunning} />
         </div>
       );
     }
@@ -71,24 +57,50 @@ const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) =>
 
   const formatToolName = (name: string) => {
     if (!name) return '';
+
     // Convert camelCase to Title Case with spaces
-    return name
+    const baseName = name
       .replace(/([A-Z])/g, ' $1')
       .trim()
       .split(' ')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+
+    if (isRunning) {
+      if (name === 'applyEditOperations') return 'Applying Edit Operations';
+      if (baseName.toLowerCase().startsWith('get ')) {
+        return `Getting ${baseName.slice(4)}`;
+      }
+      if (baseName.toLowerCase().startsWith('update ')) {
+        return `Updating ${baseName.slice(7)}`;
+      }
+      return `Executing ${baseName}`;
+    }
+
+    if (isDone && !isError) {
+      if (name === 'getProjectManifest') return 'Obtained Project Manifest';
+      if (name === 'applyEditOperations') return 'Applied Edit Operations';
+      if (baseName.toLowerCase().startsWith('get ')) {
+        return `Obtained ${baseName.slice(4)}`;
+      }
+      if (baseName.toLowerCase().startsWith('update ')) {
+        return `Updated ${baseName.slice(7)}`;
+      }
+      return `Completed ${baseName}`;
+    }
+
+    return baseName;
   };
 
   const getStatusText = () => {
-    if (isRunning) return depth > 0 ? 'Executing' : 'Working';
+    if (isRunning) return '';
     if (isError) return 'Failed';
-    return depth > 0 ? 'Success' : 'Ready';
+    return '';
   };
 
   return (
     <div
-      className="flex items-center gap-2 py-0.5 mb-1 h-5 relative"
+      className="flex items-center gap-2 py-0.5 mb-1.5 h-5 relative"
       style={{ marginLeft: depth * 14 }}
     >
       {/* Hierarchy Line */}
@@ -99,21 +111,62 @@ const ToolStep = ({ step, depth = 0 }: { step: MessageStep; depth?: number }) =>
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span
           className={`text-[10px] font-medium truncate ${
-            isRunning ? 'text-white/60' : 'text-white/30'
+            isRunning ? 'text-white/60' : isDone ? 'text-green-500' : 'text-white/30'
           }`}
         >
           {formatToolName(step.toolName || '')}
         </span>
+        {isRunning && (
+          <span className="flex gap-1 items-center px-1 opacity-40">
+            <span className="w-0.5 h-0.5 bg-white rounded-full animate-bounce [animation-duration:0.6s]" />
+            <span className="w-0.5 h-0.5 bg-white rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.1s]" />
+            <span className="w-0.5 h-0.5 bg-white rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.2s]" />
+          </span>
+        )}
         <span className="text-[8px] tracking-wider text-white/20 font-bold shrink-0">
           {getStatusText()}
         </span>
         {isDone && !isError && (
-          <TickCircle size={10} variant="Bold" className="text-white/10 shrink-0" />
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-green-500 shrink-0"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         )}
         {isError && <Danger size={10} variant="Bold" className="text-orange-500/80 shrink-0" />}
       </div>
     </div>
   );
+};
+
+// Render markdown-like text with basic formatting
+const renderMarkdownText = (text: string) => {
+  if (!text) return null;
+  const parts = text.split(/(\*\*.+?\*\*|\*.+?\*|`.+?`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={i} className="bg-white/10 rounded px-1 font-mono text-[10px]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
 };
 
 const ReasoningBlock = ({
@@ -147,21 +200,13 @@ const ReasoningBlock = ({
 
   const displayDuration = isFinished ? duration : elapsed;
 
-  // Strip markdown formatting from thought text
-  const stripMarkdown = (text: string) => {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, '$1') // Remove **bold**
-      .replace(/\*(.+?)\*/g, '$1') // Remove *italic*
-      .replace(/`(.+?)`/g, '$1'); // Remove `code`
-  };
-
   if (!thought && !isFinished) return null;
 
   return (
-    <div className="mb-2">
+    <div className="mb-1.5">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors group mb-2 h-4"
+        className="flex items-center gap-2 text-[8px] font-medium text-white/40 hover:text-white/60 transition-colors group h-4"
       >
         <div className="w-3 shrink-0 flex items-center justify-center">
           <ArrowDown2
@@ -182,10 +227,10 @@ const ReasoningBlock = ({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+            className="overflow-hidden mt-2"
           >
             <div className="pl-3 border-l border-white/10 text-[11px] leading-relaxed text-white/40 italic whitespace-pre-wrap max-h-40 overflow-y-auto scrollbar-hide">
-              {stripMarkdown(thought)}
+              {renderMarkdownText(thought)}
             </div>
           </motion.div>
         )}
@@ -201,7 +246,7 @@ const MessageContent = ({ content }: { content: string }) => {
   const parts = content.split(/(@\[.+?\])/g);
 
   return (
-    <div className="text-[11px] leading-relaxed whitespace-pre-wrap">
+    <div className="text-[10px] leading-relaxed whitespace-pre-wrap">
       {parts.map((part, i) => {
         if (part.startsWith('@[') && part.endsWith(']')) {
           const fileName = part.slice(2, -1);
@@ -215,13 +260,7 @@ const MessageContent = ({ content }: { content: string }) => {
           );
         }
 
-        // Strip other basic markdown for now to keep it clean
-        const cleanPart = part
-          .replace(/\*\*(.+?)\*\*/g, '$1')
-          .replace(/\*(.+?)\*/g, '$1')
-          .replace(/`(.+?)`/g, '$1');
-
-        return <span key={i}>{cleanPart}</span>;
+        return <span key={i}>{renderMarkdownText(part)}</span>;
       })}
     </div>
   );
@@ -273,13 +312,6 @@ export function DirectorChat() {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
                   >
-                    {/* Role indicator */}
-                    <div
-                      className={`text-[9px] font-bold uppercase tracking-widest mb-2 opacity-20 ${message.role === 'user' ? 'mr-1' : 'ml-1'}`}
-                    >
-                      {message.role}
-                    </div>
-
                     <div
                       className={`max-w-full w-full flex flex-col ${
                         message.role === 'user'
@@ -290,7 +322,7 @@ export function DirectorChat() {
                       {isAssistant && message.steps && message.steps.length > 0 ? (
                         <div className="flex flex-col">
                           {(() => {
-                            const AGENT_TOOLS = ['editor', 'scout'];
+                            const AGENT_TOOLS: string[] = []; // No sub-agents, all tools are direct
                             let activeAgentTool: string | null = null;
 
                             return message.steps
@@ -309,7 +341,7 @@ export function DirectorChat() {
                                 if (step.type === 'text') {
                                   activeAgentTool = null;
                                   return (
-                                    <div key={step.id} className="mb-4 last:mb-0">
+                                    <div key={step.id} className="mb-3 last:mb-0">
                                       <MessageContent content={step.content || ''} />
                                     </div>
                                   );

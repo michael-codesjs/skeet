@@ -8,6 +8,8 @@ type AssetResource = {
   height: number;
   sourceNode?: MediaElementAudioSourceNode;
   gainNode?: GainNode;
+  texture: WebGLTexture | null;
+  textureLoaded?: boolean; // For images
 };
 
 export class VideoCompositor {
@@ -33,7 +35,6 @@ export class VideoCompositor {
   private onNeedsRender: (() => void) | null = null;
 
   // Pass 1: Scene (Video Layers)
-  private texture: WebGLTexture | null = null; // Input Media Texture
 
   // Pass 2: Effect (Post Processing)
   private sceneFrameBuffer: WebGLFramebuffer | null = null;
@@ -46,6 +47,8 @@ export class VideoCompositor {
       throw new Error('WebGL2 not supported');
     }
     this.gl = gl;
+    this.gl.enable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
     // Landscape target (Standard 16:9)
     this.canvas.width = 1920;
@@ -128,14 +131,6 @@ export class VideoCompositor {
     ]);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
     this.buffer = buffer;
-
-    // 3. Input Media Texture (reused for every video frame)
-    this.texture = this.gl.createTexture();
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
 
     // 4. Scene FBO (Intermediate Canvas)
     // We render the video layers here first, then apply effects on top of ANY video content.
@@ -387,6 +382,7 @@ export class VideoCompositor {
         mediaId,
         width: 0,
         height: 0,
+        texture: type === 'audio' ? null : this.gl.createTexture(),
       };
 
       if (type === 'video') {
@@ -406,6 +402,14 @@ export class VideoCompositor {
         v.onloadedmetadata = () => {
           resource.width = v.videoWidth;
           resource.height = v.videoHeight;
+
+          // Initialize texture parameters
+          this.gl.bindTexture(this.gl.TEXTURE_2D, resource.texture);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+
           this.assetCache.set(mediaId, resource);
           resolve(resource);
         };
@@ -432,6 +436,24 @@ export class VideoCompositor {
         img.onload = () => {
           resource.width = img.naturalWidth;
           resource.height = img.naturalHeight;
+
+          // Initialize texture parameters and upload once
+          this.gl.bindTexture(this.gl.TEXTURE_2D, resource.texture);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+          this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+
+          this.gl.texImage2D(
+            this.gl.TEXTURE_2D,
+            0,
+            this.gl.RGBA,
+            this.gl.RGBA,
+            this.gl.UNSIGNED_BYTE,
+            img,
+          );
+          resource.textureLoaded = true;
+
           this.assetCache.set(mediaId, resource);
           resolve(resource);
         };
@@ -487,19 +509,49 @@ export class VideoCompositor {
       }
     }
 
-    // 2. Resource Management: Play/Pause/Sync each resource ONCE
+    // 2. Resource Management: Play/Pause/Sync/Pre-warm
+    const prewarmThresholdMs = 1500; // 1.5s pre-warm
+    const upcomingMediaIds = new Set<string>();
+
+    for (const track of this.timeline.tracks) {
+      for (const item of track.children) {
+        if (item.type !== 'Clip') continue;
+        const start = item.start;
+        // Identify clips starting soon
+        if (currentTimeMs < start && currentTimeMs >= start - prewarmThresholdMs) {
+          const mId = this.getMediaId(item);
+          if (mId) upcomingMediaIds.add(mId);
+        }
+      }
+    }
+
     this.assetCache.forEach((resource, mediaId) => {
       if (resource.type === 'video' || resource.type === 'audio') {
         const mediaEl = resource.element as HTMLVideoElement | HTMLAudioElement;
         const isActive = activeMediaIds.has(mediaId);
+        const isUpcoming = upcomingMediaIds.has(mediaId);
 
         if (isActive && isPlaying) {
-          if (mediaEl.paused) mediaEl.play().catch(() => {});
+          if (mediaEl.paused) {
+            mediaEl.play().catch(() => {});
+          }
         } else {
-          if (!mediaEl.paused) mediaEl.pause();
+          if (!mediaEl.paused) {
+            mediaEl.pause();
+          }
+          // If upcoming, pre-seek to start frame
+          if (isUpcoming && !isActive) {
+            const clip = this.timeline?.tracks
+              .flatMap((t: any) => t.children)
+              .find((c: any) => c.mediaId === mediaId && c.start > currentTimeMs);
+            if (clip) {
+              const startSeek = (clip.sourceStart || 0) / 1000;
+              if (Math.abs(mediaEl.currentTime - startSeek) > 0.1) {
+                mediaEl.currentTime = startSeek;
+              }
+            }
+          }
         }
-
-        // Sync logic is handled per-clip during Pass 1 for exact timing
       }
     });
 
@@ -544,20 +596,22 @@ export class VideoCompositor {
           if (resource) {
             const el = resource.element;
             const sourceStartMs = clip.sourceStart;
-            const offsetMs = currentTimeMs - startMs;
-            const targetSeek = (sourceStartMs + offsetMs) / 1000;
+            const elapsedMs = currentTimeMs - startMs;
+            const remainingMs = endMs - currentTimeMs;
+            const targetSeek = (sourceStartMs + elapsedMs) / 1000;
 
             if (resource.type === 'video' || resource.type === 'audio') {
               const mediaEl = el as HTMLVideoElement | HTMLAudioElement;
 
               if (!mediaEl.seeking) {
                 const diff = mediaEl.currentTime - targetSeek;
-                if (Math.abs(diff) > 0.5) {
+                // Tighten threshold: 80ms is enough to warrant a hard seek for clean cuts
+                if (Math.abs(diff) > 0.08) {
                   mediaEl.currentTime = targetSeek;
-                } else if (diff < -0.05) {
-                  mediaEl.playbackRate = 1.05;
-                } else if (diff > 0.05) {
-                  mediaEl.playbackRate = 0.95;
+                } else if (diff < -0.02) {
+                  mediaEl.playbackRate = 1.02; // Subtle catch up
+                } else if (diff > 0.02) {
+                  mediaEl.playbackRate = 0.98; // Subtle slow down
                 } else {
                   mediaEl.playbackRate = 1.0;
                 }
@@ -574,13 +628,10 @@ export class VideoCompositor {
                   const fadeOut = Number(clip.metadata?.fadeOut || 0);
 
                   let alpha = 1.0;
-                  const elapsed = currentTimeMs - clip.start;
-                  const remaining = clip.start + clip.duration - currentTimeMs;
-
-                  if (fadeIn > 0 && elapsed < fadeIn) {
-                    alpha = elapsed / fadeIn;
-                  } else if (fadeOut > 0 && remaining < fadeOut) {
-                    alpha = remaining / fadeOut;
+                  if (fadeIn > 0 && elapsedMs < fadeIn) {
+                    alpha = elapsedMs / fadeIn;
+                  } else if (fadeOut > 0 && remainingMs < fadeOut) {
+                    alpha = remainingMs / fadeOut;
                   }
 
                   targetVolume = vol * alpha;
@@ -591,14 +642,15 @@ export class VideoCompositor {
               }
 
               if (resource.type === 'video') {
-                this.updateTexture(el as HTMLVideoElement);
+                this.updateTexture(el as HTMLVideoElement, resource.texture);
               }
-            } else {
-              this.updateTexture(el as HTMLImageElement);
+            } else if (resource.type === 'image') {
+              // Image path - already updated once in loadAsset, just bind here
+              this.gl.bindTexture(this.gl.TEXTURE_2D, resource.texture);
             }
 
-            // Draw Video to FBO
-            if (track.kind === 'Video' && resource.type !== 'audio') {
+            // Draw Video/Image to FBO
+            if (track.kind === 'Video' && resource.type !== 'audio' && resource.texture) {
               const fit = this.calculateFit(
                 resource.width,
                 resource.height,
@@ -610,15 +662,65 @@ export class VideoCompositor {
               const panX = clip.metadata?.panX || 0;
               const panY = clip.metadata?.panY || 0;
 
-              const width = fit.width * zoom;
-              const height = fit.height * zoom;
+              const baseWidth = fit.width * zoom;
+              const baseHeight = fit.height * zoom;
 
               // Center + Pan
-              const x = fit.x - (width - fit.width) / 2 + panX;
-              const y = fit.y - (height - fit.height) / 2 + panY;
+              const baseX = fit.x - (baseWidth - fit.width) / 2 + panX;
+              const baseY = fit.y - (baseHeight - fit.height) / 2 + panY;
+
+              // --- TRANSITION LOGIC ---
+              let opacity = 1.0;
+              let x = baseX;
+              let y = baseY;
+              let width = baseWidth;
+              let height = baseHeight;
+
+              const tIn = clip.metadata?.transitionIn; // 'fade', 'slide-left', 'slide-right', 'slide-up', 'slide-down', 'zoom'
+              const tInDuration = Number(clip.metadata?.transitionInDuration || 0);
+              const tOut = clip.metadata?.transitionOut;
+              const tOutDuration = Number(clip.metadata?.transitionOutDuration || 0);
+
+              if (tInDuration > 0 && elapsedMs < tInDuration) {
+                const progress = elapsedMs / tInDuration; // 0 -> 1
+                if (tIn === 'fade') {
+                  opacity = progress;
+                } else if (tIn === 'slide-left') {
+                  x = baseX - this.canvas.width * (1.0 - progress);
+                } else if (tIn === 'slide-right') {
+                  x = baseX + this.canvas.width * (1.0 - progress);
+                } else if (tIn === 'slide-up') {
+                  y = baseY + this.canvas.height * (1.0 - progress);
+                } else if (tIn === 'slide-down') {
+                  y = baseY - this.canvas.height * (1.0 - progress);
+                } else if (tIn === 'zoom') {
+                  width = baseWidth * progress;
+                  height = baseHeight * progress;
+                  x = baseX + (baseWidth - width) / 2;
+                  y = baseY + (baseHeight - height) / 2;
+                }
+              } else if (tOutDuration > 0 && remainingMs < tOutDuration) {
+                const progress = remainingMs / tOutDuration; // 1 -> 0
+                if (tOut === 'fade') {
+                  opacity = progress;
+                } else if (tOut === 'slide-left') {
+                  x = baseX - this.canvas.width * (1.0 - progress);
+                } else if (tOut === 'slide-right') {
+                  x = baseX + this.canvas.width * (1.0 - progress);
+                } else if (tOut === 'slide-up') {
+                  y = baseY + this.canvas.height * (1.0 - progress);
+                } else if (tOut === 'slide-down') {
+                  y = baseY - this.canvas.height * (1.0 - progress);
+                } else if (tOut === 'zoom') {
+                  width = baseWidth * progress;
+                  height = baseHeight * progress;
+                  x = baseX + (baseWidth - width) / 2;
+                  y = baseY + (baseHeight - height) / 2;
+                }
+              }
 
               this.gl.uniform4f(rectLoc, x, y, width, height);
-              this.gl.uniform1f(opacityLoc, 1.0);
+              this.gl.uniform1f(opacityLoc, opacity);
               this.gl.uniform1f(vFlipLoc, 0.0); // Pass 1: No Flip
               this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
             }
@@ -703,8 +805,11 @@ export class VideoCompositor {
     this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
   }
 
-  private updateTexture(source: HTMLVideoElement | HTMLImageElement) {
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
+  private updateTexture(source: HTMLVideoElement | HTMLImageElement, texture: WebGLTexture | null) {
+    if (!texture) return;
+    if (source instanceof HTMLVideoElement && source.readyState < 2) return;
+
+    this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
     this.gl.texImage2D(
       this.gl.TEXTURE_2D,
       0,
@@ -713,11 +818,6 @@ export class VideoCompositor {
       this.gl.UNSIGNED_BYTE,
       source,
     );
-    // Re-apply params just to be safe
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
   }
 
   public dispose() {
@@ -741,7 +841,9 @@ export class VideoCompositor {
     if (this.gl) {
       if (this.baseProgram) this.gl.deleteProgram(this.baseProgram);
       this.effectPrograms.forEach((p) => this.gl.deleteProgram(p));
-      if (this.texture) this.gl.deleteTexture(this.texture);
+      this.assetCache.forEach((res) => {
+        if (res.texture) this.gl.deleteTexture(res.texture);
+      });
       if (this.sceneTexture) this.gl.deleteTexture(this.sceneTexture);
       if (this.sceneFrameBuffer) this.gl.deleteFramebuffer(this.sceneFrameBuffer);
       if (this.buffer) this.gl.deleteBuffer(this.buffer);

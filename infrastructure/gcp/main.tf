@@ -7,75 +7,132 @@ terraform {
   }
 }
 
-provider "google" {
-  project = var.project_id
-  region  = var.region
+locals {
+  # Hardcoded configuration
+  project_id = "gen-lang-client-0763038183"
+  region     = "us-central1"
+
+  # Detect Stage from environment (defaults to dev)
+  stage = "dev" # Can be set via -var="stage=prod" if needed
 }
+
+provider "google" {
+  project = local.project_id
+  region  = local.region
+}
+
+# --- Core Infrastructure ---
 
 # 1. Artifact Registry for our Docker images
 resource "google_artifact_registry_repository" "skeet_repo" {
-  location      = var.region
+  location      = local.region
   repository_id = "skeet-repo"
   description   = "Docker repository for Skeet services"
   format        = "DOCKER"
 }
 
-# 2. Firewall rule to allow our service port
-resource "google_compute_firewall" "allow_skeet" {
-  name    = "allow-skeet-service"
-  network = "default"
+# --- Secret Manager (Vaults) ---
 
-  allow {
-    protocol = "tcp"
-    ports    = ["5445"]
+resource "google_secret_manager_secret" "database_url" {
+  secret_id = "DATABASE_URL"
+  replication {
+    auto {}
   }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["skeet-service"]
 }
 
-# 3. Compute Engine Instance running COS with our container
-resource "google_compute_instance" "skeet_be" {
-  name         = "skeet-be-instance"
-  machine_type = "e2-medium"
-  zone         = "${var.region}-a"
-  tags         = ["skeet-service"]
-
-  boot_disk {
-    initialize_params {
-      image = "cos-cloud/cos-stable"
-    }
+resource "google_secret_manager_secret" "gemini_key" {
+  secret_id = "GEMINI_API_KEY"
+  replication {
+    auto {}
   }
+}
 
-  network_interface {
-    network = "default"
-    access_config {
-      # Include this block to give the VM an external IP
+# Values passed from GitHub Action secrets
+resource "google_secret_manager_secret_version" "db_value" {
+  secret      = google_secret_manager_secret.database_url.id
+  secret_data = var.database_url
+}
+
+resource "google_secret_manager_secret_version" "gemini_value" {
+  secret      = google_secret_manager_secret.gemini_key.id
+  secret_data = var.gemini_api_key
+}
+
+# --- Cloud Run Service ---
+
+resource "google_cloud_run_v2_service" "skeet_be" {
+  name     = "skeet-be-${local.stage}"
+  location = local.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    scaling {
+      max_instance_count = 1
     }
-  }
 
-  metadata = {
-    # This magic metadata tells COS how to run the container
-    gce-container-declaration = yamlencode({
-      spec = {
-        containers = [{
-          name  = "skeet-be"
-          image = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.skeet_repo.repository_id}/skeet-be:latest"
-          env = [
-            { name = "DATABASE_URL", value = var.database_url },
-            { name = "GEMINI_API_KEY", value = var.gemini_api_key },
-            { name = "PORT", value = "5445" },
-            { name = "NODE_ENV", value = "production" }
-          ]
-          ports = [{ containerPort = 5445 }]
-        }]
-        restartPolicy = "Always"
+    containers {
+      image = "${local.region}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.skeet_repo.repository_id}/skeet-be:latest"
+      
+      ports {
+        container_port = 5445
       }
-    })
+
+      env {
+        name  = "NODE_ENV"
+        value = local.stage == "prod" ? "production" : "development"
+      }
+
+      # Secrets mounted from Secret Manager
+      env {
+        name = "DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.database_url.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "GEMINI_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.gemini_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+    }
+  }
+}
+
+# Allow public access
+resource "google_cloud_run_v2_service_iam_member" "noauth" {
+  location = google_cloud_run_v2_service.skeet_be.location
+  name     = google_cloud_run_v2_service.skeet_be.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Custom Domain
+resource "google_cloud_run_domain_mapping" "api_custom_domain" {
+  location = local.region
+  name     = "api.tryskeet.com"
+
+  metadata {
+    namespace = local.project_id
   }
 
-  service_account {
-    # Minimal scope to pull images from Artifact Registry
-    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  spec {
+    route_name = google_cloud_run_v2_service.skeet_be.name
   }
+}
+
+# --- Outputs ---
+
+output "service_url" {
+  value = google_cloud_run_v2_service.skeet_be.uri
+}
+
+output "custom_domain_url" {
+  value = "https://api.tryskeet.com"
 }

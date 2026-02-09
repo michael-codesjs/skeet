@@ -1,13 +1,9 @@
 import { Agent } from '@mastra/core/agent';
 import { MessageListInput } from '@mastra/core/dist/agent/message-list';
-import { createTool } from '@mastra/core/tools';
 import { Memory } from '@mastra/memory';
 import { PostgresStore } from '@mastra/pg';
-import { z } from 'zod';
 import { createTools } from './create-tools';
-import { getEditorAgent } from './editor';
 import { prompt } from './instructions';
-import { getScoutAgent } from './scout';
 
 const connectionString = process.env.DATABASE_URL!;
 
@@ -17,8 +13,6 @@ type SkeetConfig = {
 
 export class Skeet {
   private orchestrator: Agent;
-  private scout: Agent;
-  private editor: Agent;
   private memory: Memory;
   private projectId: string;
 
@@ -41,10 +35,6 @@ export class Skeet {
       options: {
         lastMessages: 10,
         generateTitle: true,
-        // workingMemory: {
-        //   enabled: true,
-        //   scope: 'resource',
-        // },
       },
       storage,
     });
@@ -53,76 +43,32 @@ export class Skeet {
   private setupOrchestratorAgent() {
     const tools = createTools(this.projectId);
 
-    // 1. Initialize specialized sub-agents with baked tools
-    this.scout = getScoutAgent(tools);
-    this.editor = getEditorAgent(tools);
-
-    // 2. Initialize the Orchestrator with sub-agent tools
+    // Initialize the Orchestrator with all project tools directly
     this.orchestrator = new Agent({
       id: `skeet-${this.projectId}`,
       name: 'Skeet Orchestrator',
-      model: 'google/gemini-3-pro-preview',
+      model: 'google/gemini-3-flash-preview',
       instructions: {
         role: 'system',
         content: prompt,
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingLevel: 'high',
+              includeThoughts: true,
+            },
+          },
+        },
       },
       memory: this.memory,
       tools: {
+        getProjectManifest: tools.getProjectManifest,
+        searchSegments: tools.searchSegments,
         getCurrentTimeline: tools.getCurrentTimeline,
-        getAvailableEffects: tools.getAvailableEffects,
+        clearTimeline: tools.clearTimeline,
+        getClipDetails: tools.getClipDetails,
+        getCreativeLibrary: tools.getCreativeLibrary,
         applyEditOperations: tools.applyEditOperations,
-        scout: createTool({
-          id: 'scout',
-          description: 'Calls the Scout to search for clips or retrieve technical details.',
-          inputSchema: z.object({
-            question: z
-              .string()
-              .describe('The search query or technical question about the media.'),
-          }),
-          execute: async ({ question }) => {
-            try {
-              console.log(`[Skeet] 🔍 [${this.projectId}] Consulting Analyst: ${question}`);
-              const result = await this.scout.generate(`Question: ${question}`);
-              console.log(`[Skeet] ✅ Analyst finished (${result.text?.length || 0} chars).`);
-              return result.text;
-            } catch (err: any) {
-              console.error(`[Skeet] ❌ Analyst Error:`, err);
-              return `Error consulting Scout: ${err.message}`;
-            }
-          },
-        }),
-        editor: createTool({
-          id: 'editor',
-          description:
-            'Calls the Editor to perform creative edits or update the timeline OTIO. For complex requests, call this tool multiple times for different segments or chunks of the edit.',
-          inputSchema: z.object({
-            request: z
-              .string()
-              .describe(
-                "The user's creative editing instructions for this specific chunk or the whole edit.",
-              ),
-            context: z
-              .string()
-              .describe('Recommended clips and technical data provided by the Scout.'),
-          }),
-          execute: async ({ request, context }) => {
-            try {
-              console.log(
-                `[Skeet] 🎬 [${this.projectId}] Consulting Director... (Request: ${request.length} chars)`,
-              );
-
-              const result = await this.editor.generate(
-                `Clips Context: ${context}\nCreative Request: ${request}`,
-              );
-
-              console.log(`[Skeet] ✨ Editor finished (${result.text?.length || 0} chars).`);
-              return result.text;
-            } catch (err: any) {
-              console.error(`[Skeet] 🎬 Editor Error:`, err);
-              return `The director failed to respond: ${err.message}`;
-            }
-          },
-        }),
       },
     });
   }
@@ -165,17 +111,18 @@ export class Skeet {
   public async stream(messages: MessageListInput, threadId?: string) {
     const activeThreadId = await this.getOrCreateThread(threadId);
 
-    console.log(`[Skeet] 🚀 Streaming session for ${this.projectId} (Thread: ${activeThreadId})`);
+    // console.log(`[Skeet] 🚀 Streaming session for ${this.projectId} (Thread: ${activeThreadId})`);
 
     const runOutput = await this.orchestrator.stream(messages, {
       memory: {
         resource: this.projectId,
         thread: activeThreadId,
       },
+      maxSteps: 20, // Allow agent to complete tool workflow + generate response
       providerOptions: {
         google: {
           thinkingConfig: {
-            thinkingLevel: 'low',
+            thinkingLevel: 'high',
             includeThoughts: true,
           },
         },

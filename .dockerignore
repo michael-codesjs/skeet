@@ -9,3 +9,9 @@ coverage
 .DS_Store
 .env.local
 .env
+# Project specific large assets
+training/
+docs/
+infrastructure/
+clients/
+# Ignore lockfiles that aren't for the current platform (if needed, but mostly focusing on size)

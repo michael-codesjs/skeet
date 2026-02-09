@@ -1,4 +1,5 @@
 project_id     = "your-project-id"
 region         = "us-central1"
+stage          = "dev"
 database_url   = "postgresql://..."
 gemini_api_key = "AIza..."

@@ -73,48 +73,50 @@ export function EffectsLibrary() {
   };
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="grid grid-cols-2 gap-2 px-1">
-        {EFFECTS.map((effect) => (
-          <button
-            key={effect.id}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('effecttype', effect.id);
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-            onClick={() => handleAddEffect(effect.id)}
-            className={cn(
-              'group relative flex flex-col items-start p-3 rounded-xl border border-white/5 transition-all duration-300',
-              'bg-neutral-900/40 hover:bg-neutral-800/80 active:scale-[0.96]',
-              effect.border,
-            )}
-          >
-            {/* Compact Icon */}
-            <div
+    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 overflow-hidden">
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 px-1 py-1">
+        <div className="grid grid-cols-2 gap-2">
+          {EFFECTS.map((effect) => (
+            <button
+              key={effect.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('effecttype', effect.id);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={() => handleAddEffect(effect.id)}
               className={cn(
-                'flex items-center justify-center w-8 h-8 rounded-lg mb-2 transition-transform duration-300 group-hover:scale-110',
-                effect.bg,
-                effect.color,
+                'group relative flex flex-col items-start p-3 rounded-xl border border-white/5 transition-all duration-300',
+                'bg-neutral-900/40 hover:bg-neutral-800/80 active:scale-[0.96]',
+                effect.border,
               )}
             >
-              <effect.icon size={18} variant="Bulk" color="currentColor" />
-            </div>
+              {/* Compact Icon */}
+              <div
+                className={cn(
+                  'flex items-center justify-center w-8 h-8 rounded-lg mb-2 transition-transform duration-300 group-hover:scale-110',
+                  effect.bg,
+                  effect.color,
+                )}
+              >
+                <effect.icon size={18} variant="Bulk" color="currentColor" />
+              </div>
 
-            {/* Content */}
-            <div className="w-full text-left">
-              <p className="text-[11px] font-semibold text-white truncate">{effect.label}</p>
-              <p className="text-[9px] text-neutral-500 truncate group-hover:text-neutral-400 transition-colors">
-                {effect.description}
-              </p>
-            </div>
+              {/* Content */}
+              <div className="w-full text-left">
+                <p className="text-[11px] font-semibold text-white truncate">{effect.label}</p>
+                <p className="text-[9px] text-neutral-500 truncate group-hover:text-neutral-400 transition-colors">
+                  {effect.description}
+                </p>
+              </div>
 
-            {/* Subtle Hover Indicator */}
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className={cn('w-1 h-1 rounded-full', effect.color.replace('text-', 'bg-'))} />
-            </div>
-          </button>
-        ))}
+              {/* Subtle Hover Indicator */}
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={cn('w-1 h-1 rounded-full', effect.color.replace('text-', 'bg-'))} />
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Modern Tooltip / Tip Section */}

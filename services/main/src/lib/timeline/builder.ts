@@ -26,8 +26,9 @@ const genId = () => Math.random().toString(36).substring(2, 10);
 export const applyOperationsToTimeline = async (
   timeline: Timeline,
   operations: EditOperation[],
-): Promise<Timeline> => {
+): Promise<{ timeline: Timeline; warnings: string[] }> => {
   console.log(`[Timeline Builder] 🛠️ Applying ${operations.length} operations...`);
+  const warnings: string[] = [];
 
   const CORE_TRACKS = [
     { name: 'Main Visuals', kind: 'Video' as const },
@@ -70,12 +71,50 @@ export const applyOperationsToTimeline = async (
       continue;
     }
 
-    // Surgical Cap: Only allow operations on 0-3
-    const targetIdx = Math.min(operation.trackId, CORE_TRACKS.length - 1);
-    const track = timeline.tracks[targetIdx];
-    if (!track) continue; // Should never happen now
+    const trackId = (operation as any).trackId;
+    const hasTrackId = trackId !== undefined;
+    const targetIdx = hasTrackId ? Math.min(trackId, CORE_TRACKS.length - 1) : -1;
+    const track = hasTrackId ? timeline.tracks[targetIdx] : null;
+
+    // Only bail if it's a track-specific operation that's missing its track
+    const trackSpecificTypes = [
+      'RIPPLE',
+      'APPEND',
+      'INSERT',
+      'OVERLAY',
+      'EFFECT',
+      'TRIM',
+      'EMPTY_TRACK',
+    ];
+    if (trackSpecificTypes.includes(operation.type) && !track) {
+      console.warn(
+        `[Timeline Builder] 🛑 Skipping ${operation.type}: Track ID missing or invalid.`,
+      );
+      continue;
+    }
 
     switch (operation.type) {
+      case 'RIPPLE': {
+        const { fromTime, delta } = operation;
+        if (fromTime === undefined || delta === undefined) {
+          console.warn(`[Timeline Builder] 🛑 RIPPLE requires 'fromTime' and 'delta'.`);
+          continue;
+        }
+
+        let shiftedCount = 0;
+        track.children.forEach((clip) => {
+          if (clip.start >= fromTime) {
+            clip.start += delta;
+            shiftedCount++;
+          }
+        });
+
+        console.log(
+          `[Timeline Builder] 🌊 RIPPLE: Shifted ${shiftedCount} clip(s) on track ${targetIdx} from ${fromTime}ms by ${delta > 0 ? '+' : ''}${delta}ms`,
+        );
+        break;
+      }
+
       case 'APPEND': {
         const { mediaId, sourceStart = 0, duration } = operation;
         if (duration === undefined || !mediaId) continue;
@@ -105,9 +144,9 @@ export const applyOperationsToTimeline = async (
 
         const targetIdx = Math.min(operation.trackId, CORE_TRACKS.length - 1);
         if (hasCollision(track, start, duration)) {
-          console.warn(
-            `[Timeline Builder] 🛑 Collision detected at ${start}ms on track ${targetIdx}. Operation skipped.`,
-          );
+          const warning = `Collision detected at ${start}ms on track ${targetIdx}. INSERT operation skipped. Use RIPPLE to make room first!`;
+          console.warn(`[Timeline Builder] 🛑 ${warning}`);
+          warnings.push(warning);
           continue;
         }
 
@@ -157,26 +196,53 @@ export const applyOperationsToTimeline = async (
         } = operation;
         if (!id) continue;
 
-        const clipIdx = track.children.findIndex((c) => c.id === id);
-        if (clipIdx === -1) {
-          console.warn(`[Timeline Builder] 🛑 UPDATE failed: Clip ${id} not found.`);
-          continue;
+        // If trackId is specified, only search that track. Otherwise search all tracks.
+        const tracksToSearch =
+          operation.trackId !== undefined
+            ? [{ track: timeline.tracks[operation.trackId], idx: operation.trackId }]
+            : timeline.tracks.map((t, idx) => ({ track: t, idx }));
+
+        let foundClip = false;
+        for (const { track: searchTrack, idx: trackIdx } of tracksToSearch) {
+          if (!searchTrack) continue;
+
+          const clipIdx = searchTrack.children.findIndex((c) => c.id === id);
+          if (clipIdx === -1) continue;
+
+          const clip = searchTrack.children[clipIdx];
+          const finalStart = newStart !== undefined ? newStart : clip.start;
+          const finalDuration = newDuration !== undefined ? newDuration : clip.duration;
+
+          // Collision check (excluding self)
+          if (hasCollision(searchTrack, finalStart, finalDuration, id)) {
+            console.warn(
+              `[Timeline Builder] 🛑 UPDATE collision for ${id} at ${finalStart}ms on track ${trackIdx}.`,
+            );
+            continue;
+          }
+
+          if (newStart !== undefined) clip.start = newStart;
+          if (newDuration !== undefined) clip.duration = newDuration;
+          if (newSourceStart !== undefined && clip.type === 'Clip') {
+            (clip as any).sourceStart = newSourceStart;
+          }
+
+          // Persist parameters (transitions, effects, etc) into metadata
+          if (operation.parameters) {
+            clip.metadata = { ...(clip.metadata || {}), ...operation.parameters };
+          }
+
+          console.log(
+            `[Timeline Builder] ✅ Updated clip ${id} on track ${trackIdx}: start=${clip.start}, duration=${clip.duration}, sourceStart=${(clip as any).sourceStart}`,
+          );
+          // Maintain order after update (in case start time changed)
+          searchTrack.children.sort((a, b) => a.start - b.start);
+          foundClip = true;
+          break;
         }
 
-        const clip = track.children[clipIdx];
-        const finalStart = newStart !== undefined ? newStart : clip.start;
-        const finalDuration = newDuration !== undefined ? newDuration : clip.duration;
-
-        // Collision check (excluding self)
-        if (hasCollision(track, finalStart, finalDuration, id)) {
-          console.warn(`[Timeline Builder] 🛑 UPDATE collision for ${id} at ${finalStart}ms.`);
-          continue;
-        }
-
-        if (newStart !== undefined) clip.start = newStart;
-        if (newDuration !== undefined) clip.duration = newDuration;
-        if (newSourceStart !== undefined && clip.type === 'Clip') {
-          (clip as any).sourceStart = newSourceStart;
+        if (!foundClip) {
+          console.warn(`[Timeline Builder] 🛑 UPDATE failed: Clip ${id} not found in any track.`);
         }
         break;
       }
@@ -193,18 +259,46 @@ export const applyOperationsToTimeline = async (
 
         if (clip) {
           clip.duration = duration;
+
+          // Also persist parameters during trim if provided
+          if (operation.parameters) {
+            clip.metadata = { ...(clip.metadata || {}), ...operation.parameters };
+          }
         }
         break;
       }
 
       case 'DELETE': {
         const { id, start } = operation;
-        if (id) {
-          track.children = track.children.filter((c) => c.id !== id);
-        } else if (start !== undefined) {
-          track.children = track.children.filter(
-            (c) => !(start >= c.start && start < c.start + c.duration),
-          );
+
+        // If trackId is specified, only search that track. Otherwise search all tracks.
+        const tracksToSearch =
+          operation.trackId !== undefined
+            ? [{ track: timeline.tracks[operation.trackId], idx: operation.trackId }]
+            : timeline.tracks.map((t, idx) => ({ track: t, idx }));
+
+        for (const { track: searchTrack, idx: trackIdx } of tracksToSearch) {
+          if (!searchTrack) continue;
+
+          const initialCount = searchTrack.children.length;
+
+          if (id) {
+            searchTrack.children = searchTrack.children.filter((c) => c.id !== id);
+          } else if (start !== undefined) {
+            searchTrack.children = searchTrack.children.filter(
+              (c) => !(start >= c.start && start < c.start + c.duration),
+            );
+          }
+
+          const finalCount = searchTrack.children.length;
+          if (finalCount < initialCount) {
+            console.log(
+              `[Timeline Builder] 🗑️  Deleted ${initialCount - finalCount} clip(s) from track ${trackIdx}${id ? ` (id: ${id})` : ` (at ${start}ms)`}`,
+            );
+            // Maintain order after deletion
+            searchTrack.children.sort((a, b) => a.start - b.start);
+            if (id) break; // If deleting by ID, stop after first match
+          }
         }
         break;
       }
@@ -216,8 +310,10 @@ export const applyOperationsToTimeline = async (
     }
 
     // Maintain temporal order within children array for consistency
-    track.children.sort((a, b) => a.start - b.start);
+    if (track) {
+      track.children.sort((a, b) => a.start - b.start);
+    }
   }
 
-  return timeline;
+  return { timeline, warnings };
 };

@@ -8,7 +8,8 @@ export type EditOperation = {
     | 'DELETE'
     | 'ADD_TRACK'
     | 'EMPTY_TRACK'
-    | 'UPDATE';
+    | 'UPDATE'
+    | 'RIPPLE';
   id?: string; // Target specific clip for UPDATE/DELETE
   mediaId?: string;
   trackId: number;
@@ -18,6 +19,8 @@ export type EditOperation = {
   effectType?: string;
   parameters?: Record<string, any>;
   kind?: 'Video' | 'Audio'; // For adding tracks
+  fromTime?: number; // For RIPPLE: start shifting from this time
+  delta?: number; // For RIPPLE: amount to shift (positive = right, negative = left)
 };
 
 export type TimelineClip = {

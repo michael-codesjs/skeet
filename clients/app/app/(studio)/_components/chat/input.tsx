@@ -196,6 +196,7 @@ export const ChatInput = () => {
               lineBuffer = remainingBuffer;
 
               for (const data of events) {
+                console.log('data:', data);
                 if (data.type === 'thread-created' && data.payload?.threadId) {
                   threadCreatedThisSession = true;
                   const newThreadId = data.payload.threadId;
