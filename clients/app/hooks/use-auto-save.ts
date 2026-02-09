@@ -1,6 +1,6 @@
 'use client';
 
-import { APPLY_PROJECT_OPERATIONS, UPDATE_PROJECT } from '@/graphql/mutations/projects';
+import { UPDATE_PROJECT } from '@/graphql/mutations/projects';
 import { useStudioStore } from '@/stores/studio';
 import { useMutation } from '@apollo/client/react';
 import { useEffect, useRef } from 'react';
@@ -18,7 +18,7 @@ export const useAutoSave = () => {
   const set = useStudioStore.setState;
 
   const [updateProject] = useMutation(UPDATE_PROJECT);
-  const [applyOperations] = useMutation(APPLY_PROJECT_OPERATIONS);
+  // const [applyOperations] = useMutation(APPLY_PROJECT_OPERATIONS);
 
   const timeoutRef = useRef<NodeJS.Timeout>(null);
   const lastSavedOtio = useRef<string>('');
@@ -49,12 +49,12 @@ export const useAutoSave = () => {
         if (hasOps) {
           // 🚀 discrete operations
           console.log('[AutoSave] Applying operations:', pendingOperations.length);
-          await applyOperations({
-            variables: {
-              id: project.id,
-              operations: pendingOperations,
-            },
-          });
+          // await applyOperations({
+          //   variables: {
+          //     id: project.id,
+          //     operations: pendingOperations,
+          //   },
+          // });
           clearOperations();
         }
 
@@ -75,7 +75,7 @@ export const useAutoSave = () => {
     project?.id,
     pendingOperations.length,
     updateProject,
-    applyOperations,
+    // applyOperations,
     clearOperations,
   ]);
 
