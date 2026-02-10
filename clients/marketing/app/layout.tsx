@@ -19,8 +19,9 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Skeet - The AI Video Engine',
-  description: 'Logic meets Feeling. The most advanced video engine.',
+  title: 'Skeet | Move from raw footage to a story in seconds.',
+  description:
+    'AI-native video editing studio powered by Gemini 3. Transform your raw footage into cinematic stories with an agentic director.',
 };
 
 import { BackgroundAssets } from '@/components/layout/background-assets';
